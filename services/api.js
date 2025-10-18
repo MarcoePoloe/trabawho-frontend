@@ -43,6 +43,16 @@ export async function getRequest(endpoint) {
   return api.get(endpoint, { headers });
 }
 
+export async function getWithForm(endpoint, formData) {
+  const token = await AsyncStorage.getItem('token');
+  const headers = {
+    'Accept': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+
+  return api.get(endpoint, formData, { headers });
+}
+
 export async function putRequest(endpoint, data) {
   const token = await AsyncStorage.getItem('token');
   const headers = {
@@ -52,6 +62,21 @@ export async function putRequest(endpoint, data) {
   };
 
   return api.put(endpoint, data, { headers });
+}
+
+export async function putWithForm(endpoint, formData) {
+  const token = await AsyncStorage.getItem('token');
+  const headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/x-www-form-urlencoded',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+
+  console.log('🛰️ PUT form request:', endpoint);
+  console.log('📦 Headers:', headers);
+  console.log('📦 FormData:', formData);
+
+  return api.put(endpoint, formData, { headers });
 }
 
 export async function deleteRequest(endpoint) {
@@ -77,5 +102,21 @@ export async function postWithAuth(endpoint, data, token, useFormData = false) {
 
   return api.post(endpoint, data, { headers });
 }
+
+export async function putWithAuth(endpoint, data, token, useFormData = false) {
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/json',
+  };
+
+  if (useFormData) {
+    headers['Content-Type'] = 'multipart/form-data';
+    return api.put(endpoint, data, { headers });
+  }
+
+  return api.put(endpoint, data, { headers });
+}
+
+
 
 export default api;

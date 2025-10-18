@@ -8,98 +8,48 @@ import {
   Alert, 
   ActivityIndicator,
   ScrollView,
+  Image,
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { postRequest } from '../services/api';
+import { postRequest } from '../../services/api';
 import { BackHandler } from 'react-native';
 
-export default function LoginScreen() {
-  const [userType, setUserType] = useState('job-seeker');
+
+export default function RegisterScreen({ navigation }) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [userType, setUserType] = useState('job-seeker');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState({
-    email: '',
-    password: ''
-  });
-
-  const navigation = useNavigation();
-
-  // Validation functions
-  const validateEmail = (email) => {
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) return 'Email is required';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      return 'Please enter a valid email address';
-    }
-    return '';
-  };
-
-  const validatePassword = (password) => {
-    const trimmedPassword = password.trim();
-    if (!trimmedPassword) return 'Password is required';
-    if (trimmedPassword.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
-    return '';
-  };
-
-  const validateForm = () => {
-    const emailError = validateEmail(email);
-    const passwordError = validatePassword(password);
-    
-    setErrors({
-      email: emailError,
-      password: passwordError
-    });
-    
-    return !emailError && !passwordError;
-  };
-
-  const handleInputChange = (name, value) => {
-    if (name === 'email') setEmail(value);
-    if (name === 'password') setPassword(value);
-    
-    // Clear error when user types
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
 
   const toggleUserType = () => {
-    setUserType(prev => (prev === 'job-seeker' ? 'employer' : 'job-seeker'));
-    setErrors({ email: '', password: '' });
+    setUserType(prevType => (prevType === 'job-seeker' ? 'employer' : 'job-seeker'));
   };
 
-  const handleLogin = async () => {
-    if (!validateForm()) return;
-    
+  const handleRegister = async () => {
+    if (!name || !email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
-      const trimmedEmail = email.trim();
-      const trimmedPassword = password.trim();
+      const url = userType === 'job-seeker' ? '/register/job-seeker' : '/register/employer';
+      const response = await postRequest(url, { name, email, password }, true);
       
-      const url = userType === 'job-seeker' ? '/login/job-seeker' : '/login/employer';
-      const response = await postRequest(url, { 
-        email: trimmedEmail, 
-        password: trimmedPassword 
-      }, true);
-      
-      // Ensure string values for AsyncStorage
-      await AsyncStorage.setItem('token', String(response.data.access_token));
-      await AsyncStorage.setItem('role', String(userType));
-      
-      navigation.replace(userType === 'job-seeker' ? 'JobSeekerDashboard' : 'EmployerDashboard');
+      Alert.alert(
+        'Success', 
+        `Successfully registered as ${userType === 'job-seeker' ? 'Job Seeker' : 'Employer'}`
+      );
+      navigation.navigate('Login');
     } catch (error) {
       Alert.alert(
-        'Login Failed', 
-        error.response?.data?.message || 'Invalid credentials. Please try again.'
+        'Registration Failed', 
+        error.response?.data?.detail || 'Registration failed. Please try again.'
       );
     } finally {
       setIsLoading(false);
@@ -124,36 +74,47 @@ export default function LoginScreen() {
     >
       <ScrollView 
         contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"  // Fixed: using string instead of boolean
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.welcomeText}>Welcome to</Text>
-          <Text style={styles.appName}>TrabaWho</Text>
+                 <Image 
+                     source={require('../../assets/Rectangle-logo.png')} // Adjust the path if needed
+                     style={styles.logo}
+                     resizeMode="contain"
+                   />
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
-            Login as {userType === 'job-seeker' ? 'Job Seeker' : 'Employer'}
+            Register as {userType === 'job-seeker' ? 'Job Seeker' : 'Employer'}
           </Text>
+
+          <View style={styles.inputContainer}>
+            <MaterialIcons name="person" size={20} color="#666" style={styles.inputIcon} />
+            <TextInput
+              placeholder="Full Name"
+              placeholderTextColor="#999"
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              editable={!isLoading}
+            />
+          </View>
 
           <View style={styles.inputContainer}>
             <MaterialIcons name="email" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
-              placeholder="Email address"
+              placeholder="Email Address"
               placeholderTextColor="#999"
               style={styles.input}
               value={email}
-              onChangeText={(text) => handleInputChange('email', text)}
-              onBlur={() => setErrors(prev => ({
-                ...prev,
-                email: validateEmail(email)
-              }))}
+              onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
               editable={!isLoading}
             />
           </View>
-          {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
           <View style={styles.inputContainer}>
             <MaterialIcons name="lock" size={20} color="#666" style={styles.inputIcon} />
@@ -162,11 +123,7 @@ export default function LoginScreen() {
               placeholderTextColor="#999"
               style={[styles.input, { flex: 1 }]}
               value={password}
-              onChangeText={(text) => handleInputChange('password', text)}
-              onBlur={() => setErrors(prev => ({
-                ...prev,
-                password: validatePassword(password)
-              }))}
+              onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               editable={!isLoading}
@@ -183,20 +140,16 @@ export default function LoginScreen() {
               />
             </TouchableOpacity>
           </View>
-          {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
           <TouchableOpacity 
-            style={[
-              styles.primaryButton,
-              (errors.email || errors.password) && styles.disabledButton
-            ]}
-            onPress={handleLogin}
-            disabled={isLoading || !!errors.email || !!errors.password}
+            style={styles.primaryButton}
+            onPress={handleRegister}
+            disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#f5f5f5" />
             ) : (
-              <Text style={styles.primaryButtonText}>Login</Text>
+              <Text style={styles.primaryButtonText}>Register</Text>
             )}
           </TouchableOpacity>
 
@@ -207,19 +160,19 @@ export default function LoginScreen() {
           >
             <Text style={styles.switchButtonText}>
               {userType === 'job-seeker' 
-                ? 'Are you an Employer? Login here' 
-                : 'Are you a Job Seeker? Login here'}
+                ? 'Registering as Employer instead?' 
+                : 'Registering as Job Seeker instead?'}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account?</Text>
+          <Text style={styles.footerText}>Already have an account?</Text>
           <TouchableOpacity 
-            onPress={() => navigation.navigate('Register')}
+            onPress={() => navigation.goBack()}
             disabled={isLoading}
           >
-            <Text style={styles.footerLink}>Create one</Text>
+            <Text style={styles.footerLink}>Login here</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -230,17 +183,19 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f5f5f5',
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
+  logo: {
+  width: 400, // Adjust size as needed
+  height: 180, // Adjust size as needed
+  marginBottom: 10,
+  borderRadius: 8, // Optional: if you want slightly rounded corners
+},
   welcomeText: {
     fontSize: 22,
     color: '#666',
@@ -248,9 +203,14 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#4A6FA5',
+    color: '#5271ff',
     marginTop: 5,
   },
+  header: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -274,7 +234,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    marginBottom: 5,  // Reduced to make space for error text
+    marginBottom: 20,
     paddingHorizontal: 15,
   },
   inputIcon: {
@@ -290,27 +250,23 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   primaryButton: {
-    backgroundColor: '#4A6FA5',
+    backgroundColor: '#5271ff',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 10,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: '#f5f5f5',
     fontSize: 18,
     fontWeight: '600',
-  },
-  disabledButton: {
-    backgroundColor: '#cccccc',
-    opacity: 0.7,
   },
   switchButton: {
     marginTop: 20,
     alignItems: 'center',
-  },
+  }, 
   switchButtonText: {
-    color: '#4A6FA5',
+    color: '#5271ff',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -324,15 +280,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footerLink: {
-    color: '#4A6FA5',
+    color: '#5271ff',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 5,
-  },
-  errorText: {
-    color: '#ff5252',
-    fontSize: 12,
-    marginBottom: 15,
-    marginLeft: 10,
   },
 });

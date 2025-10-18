@@ -7,10 +7,11 @@ import {
   StyleSheet, 
   ActivityIndicator,
   SafeAreaView,
+  RefreshControl,
   FlatList
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { getRequest } from '../services/api';
+import { getRequest } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -23,7 +24,13 @@ const EmployerDashboard = ({ navigation }) => {
   const [appsPage, setAppsPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+
   const [refreshKey, setRefreshKey] = useState(0); // Add this line
+
+
+
   const isFocused = useIsFocused();
 
   useEffect(() => {
@@ -38,6 +45,18 @@ const EmployerDashboard = ({ navigation }) => {
     };
     checkAuth();
   }, [navigation]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchData(); // reuse your existing fetchData()
+    } catch (e) {
+      console.error('Error refreshing jobs:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
 
   useEffect(() => {
     if (isFocused) {
@@ -64,7 +83,7 @@ const EmployerDashboard = ({ navigation }) => {
 
   // Add this function to force refresh when coming back from ApplicantDetailScreen
   const handleApplicantPress = (application, job) => {
-    navigation.navigate('ApplicantDetailScreen', { 
+    navigation.navigate('ApplicantDetail', { 
       application,
       job,
       onStatusChange: () => setRefreshKey(prev => prev + 1) // Refresh when status changes
@@ -74,7 +93,7 @@ const EmployerDashboard = ({ navigation }) => {
   const renderJobItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.jobCard}
-      onPress={() => navigation.navigate('PostedJobDetailScreen', { job_id: item.job_id })}
+      onPress={() => navigation.navigate('PostedJobDetail', { job_id: item.job_id })}
     >
       <Text style={styles.jobTitle}>{item.title}</Text>
       <Text style={styles.jobCompany}>{item.company}</Text>
@@ -125,92 +144,66 @@ const EmployerDashboard = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}
+      refreshControl={
+    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+  }
+      
+      >
         <View style={styles.container}>
           <Text style={styles.welcome}>Welcome, {name}</Text>
           
-          {/* Posted Jobs Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Posted Jobs</Text>
-              <TouchableOpacity 
-                style={styles.addButton}
-                onPress={() => navigation.navigate('JobCreationFormScreen')}
-              >
-                <Text style={styles.addButtonText}>+ New Job</Text>
-              </TouchableOpacity>
-            </View>
-            
-            {jobs.length === 0 ? (
-              <Text style={styles.emptyText}>No jobs posted yet</Text>
-            ) : (
-              <FlatList
-                data={jobs.slice((jobsPage - 1) * ITEMS_PER_PAGE, jobsPage * ITEMS_PER_PAGE)}
-                renderItem={renderJobItem}
-                keyExtractor={item => item.job_id}
-                scrollEnabled={false}
-              />
-            )}
-            
-            <View style={styles.pagination}>
-              <TouchableOpacity 
-                onPress={() => setJobsPage(p => Math.max(p - 1, 1))}
-                disabled={jobsPage === 1}
-              >
-                <Text style={styles.paginationText}>Previous</Text>
-              </TouchableOpacity>
-              <Text>Page {jobsPage}</Text>
-              <TouchableOpacity
-                onPress={() => setJobsPage(p => p * ITEMS_PER_PAGE < jobs.length ? p + 1 : p)}
-                disabled={jobsPage * ITEMS_PER_PAGE >= jobs.length}
-              >
-                <Text style={styles.paginationText}>Next</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+         {/* Posted Jobs Section */}
+<View style={styles.card}>
+  <View style={styles.titleRow}>
+    <Text style={styles.cardTitle}>Active Job Listings</Text>
+    <TouchableOpacity 
+      onPress={() => navigation.navigate('JobCreationForm')}
+    >
+      <MaterialIcons name="add" size={24} color="#4A6FA5" />
+    </TouchableOpacity>
+  </View>
+  
+  {jobs.length === 0 ? (
+    <Text style={styles.emptyText}>No jobs posted yet</Text>
+  ) : (
+    <>
+      {jobs.slice((jobsPage - 1) * ITEMS_PER_PAGE, jobsPage * ITEMS_PER_PAGE).map((job) => (
+        <TouchableOpacity
+          key={job.job_id}
+          onPress={() => navigation.navigate('PostedJobDetail', { job_id: job.job_id })}
+          style={styles.item}
+        >
+          <Text style={styles.jobTitle}>{job.title}</Text>
+          <Text style={styles.company}>{job.company}</Text>
+          <Text style={styles.location}>{job.location}</Text>
+        </TouchableOpacity>
+      ))}
+      <View style={styles.pagination}>
+        <TouchableOpacity 
+          onPress={() => setJobsPage((p) => Math.max(p - 1, 1))} 
+          disabled={jobsPage === 1}
+          style={styles.paginationButton}
+        >
+          <Text style={styles.paginationButtonText}>Previous</Text>
+        </TouchableOpacity>
+        {/* <Text style={styles.pageText}>Page {jobsPage}</Text> */}
+        <TouchableOpacity
+          onPress={() =>
+            setJobsPage((p) => (p * ITEMS_PER_PAGE < jobs.length ? p + 1 : p))
+          }
+          disabled={jobsPage * ITEMS_PER_PAGE >= jobs.length}
+          style={styles.paginationButton}
+        >
+          <Text style={styles.paginationButtonText}>Next </Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  )}
+</View>
           
-          {/* Recent Applicants Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Applicants</Text>
-            
-            {applications.length === 0 ? (
-              <Text style={styles.emptyText}>No applicants yet</Text>
-            ) : (
-              <FlatList
-                data={applications.slice((appsPage - 1) * ITEMS_PER_PAGE, appsPage * ITEMS_PER_PAGE)}
-                renderItem={renderApplicantItem}
-                keyExtractor={item => item.application_id}
-                scrollEnabled={false}
-              />
-            )}
-            
-            <View style={styles.pagination}>
-              <TouchableOpacity 
-                onPress={() => setAppsPage(p => Math.max(p - 1, 1))}
-                disabled={appsPage === 1}
-              >
-                <Text style={styles.paginationText}>Previous</Text>
-              </TouchableOpacity>
-              <Text>Page {appsPage}</Text>
-              <TouchableOpacity
-                onPress={() => setAppsPage(p => p * ITEMS_PER_PAGE < applications.length ? p + 1 : p)}
-                disabled={appsPage * ITEMS_PER_PAGE >= applications.length}
-              >
-                <Text style={styles.paginationText}>Next</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+         
 
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={async () => {
-              await AsyncStorage.removeItem('token');
-              await AsyncStorage.removeItem('role');
-              navigation.replace('Login');
-            }}
-          >
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -227,60 +220,61 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   container: {
-    flex: 1,
-    padding: 20,
-  },
+  padding: 20,
+  paddingBottom: 40,
+  backgroundColor: '#f8f9fa',
+},
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  welcome: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#333',
-  },
-  section: {
-    marginBottom: 30,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  addButton: {
-    backgroundColor: '#4A6FA5',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 5,
-  },
-  addButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    marginVertical: 20,
-  },
-  jobCard: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
+ welcome: {
+  fontSize: 24,
+  fontWeight: 'bold',
+  color: '#333',
+  marginBottom: 20,
+},
+  // section: {
+  //   marginBottom: 30,
+  // },
+  // sectionHeader: {
+  //   flexDirection: 'row',
+  //   justifyContent: 'space-between',
+  //   alignItems: 'center',
+  //   marginBottom: 15,
+  // },
+  // sectionTitle: {
+  //   fontSize: 18,
+  //   fontWeight: '600',
+  //   color: '#333',
+  // },
+  // addButton: {
+  //   backgroundColor: '#4A6FA5',
+  //   paddingVertical: 8,
+  //   paddingHorizontal: 12,
+  //   borderRadius: 5,
+  // },
+  // addButtonText: {
+  //   color: 'white',
+  //   fontWeight: '600',
+  // },
+  // emptyText: {
+  //   textAlign: 'center',
+  //   color: '#666',
+  //   marginVertical: 20,
+  // },
+  // jobCard: {
+  //   backgroundColor: 'white',
+  //   borderRadius: 8,
+  //   padding: 15,
+  //   marginBottom: 10,
+  //   shadowColor: '#000',
+  //   shadowOffset: { width: 0, height: 1 },
+  //   shadowOpacity: 0.1,
+  //   shadowRadius: 3,
+  //   elevation: 2,
+  // },
   jobTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -369,6 +363,71 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
   },
+  card: {
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  padding: 20,
+  marginBottom: 20,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+},
+cardTitle: {
+  fontSize: 18,
+  fontWeight: '600',
+  color: '#333',
+},
+titleRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 15,
+},
+item: {
+  paddingVertical: 15,
+  borderBottomWidth: 1,
+  borderBottomColor: '#eee',
+},
+jobTitle: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#333',
+  marginBottom: 4,
+},
+company: {
+  fontSize: 14,
+  color: '#4A6FA5',
+  marginBottom: 4,
+},
+location: {
+  fontSize: 14,
+  color: '#666',
+  marginBottom: 4,
+},
+pagination: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginTop: 15,
+},
+paginationButton: {
+  padding: 8,
+},
+paginationButtonText: {
+  color: '#4A6FA5',
+  fontSize: 14,
+},
+pageText: {
+  color: '#666',
+  fontSize: 14,
+},
+emptyText: {
+  color: '#666',
+  textAlign: 'center',
+  paddingVertical: 20,
+},
 });
 
 export default EmployerDashboard;

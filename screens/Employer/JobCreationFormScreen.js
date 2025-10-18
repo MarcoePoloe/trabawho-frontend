@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator
 } from 'react-native';
-import { postRequest } from '../services/api';
+import { postRequest } from '../../services/api';
 
 const JobCreationFormScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -68,7 +68,7 @@ const JobCreationFormScreen = ({ navigation }) => {
       Alert.alert('Success', 'Job posted successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.replace('PostedJobDetailScreen', { job_id: jobId })
+          onPress: () => navigation.replace('PostedJobDetail', { job_id: jobId })
         }
       ]);
 
@@ -171,7 +171,7 @@ const JobCreationFormScreen = ({ navigation }) => {
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Post Job</Text>
+            <Text style={styles.submitButtonText}>Publish</Text>
           )}
         </TouchableOpacity>
       </View>

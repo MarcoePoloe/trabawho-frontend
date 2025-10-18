@@ -9,14 +9,18 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
-import { getRequest } from '../services/api';
+import { getRequest, postRequest } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
+
 
 const JobDetailsScreen = ({ navigation, route }) => {
   const { job } = route.params || {};
   const [hasApplied, setHasApplied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [justification, setJustification] = useState(null);
+const [loadingJustification, setLoadingJustification] = useState(false);
+
   const [applicationId, setApplicationId] = useState(null);
   const isFocused = useIsFocused();
 
@@ -36,6 +40,7 @@ const JobDetailsScreen = ({ navigation, route }) => {
       if (existingApp) {
         setHasApplied(true);
         setApplicationId(existingApp.application_id);
+     
       } else {
         setHasApplied(false);
         setApplicationId(null);
@@ -48,6 +53,30 @@ const JobDetailsScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleJustifyMatch = async () => {
+  if (!job?.job_id || !job?.match_percentage) return;
+
+  try {
+    setLoadingJustification(true);
+    const token = await AsyncStorage.getItem('token');
+    const response = await postRequest(
+      '/ai/justify-match',
+      { job_id: job.job_id, rating: job.match_percentage },
+      token
+    );
+
+    // Expecting { justification: "..." }
+    setJustification(response.data?.justification || 'No justification provided.');
+  } catch (error) {
+    console.error('Error fetching justification:', error);
+    Alert.alert('Error', 'Failed to get AI justification.');
+  } finally {
+    setLoadingJustification(false);
+  }
+};
+
+
+
   useEffect(() => {
     if (isFocused && job?.job_id) {
       fetchApplicationStatus();
@@ -55,22 +84,26 @@ const JobDetailsScreen = ({ navigation, route }) => {
   }, [job, isFocused]);
 
   const handleApply = () => {
-    if (hasApplied) {
-      navigation.navigate('ApplicationDetailsScreen', { 
-        application: {
-          application_id: applicationId,
-          job_id: job.job_id,
-          job: {
-            title: job.title,
-            company: job.company,
-            location: job.location
-          }
+  if (hasApplied) {
+    // Navigate to the application details screen with existing data
+    navigation.navigate('ApplicationDetails', { 
+      application: {
+        application_id: applicationId,
+        job_id: job.job_id,
+        status: 'Submitted', // <-- Temporary status for new applications
+        job: {
+          title: job.title,
+          company: job.company,
+          location: job.location
         }
-      });
-    } else {
-      navigation.navigate('ApplicationFormScreen', { job });
-    }
+      }
+    });
+  } else {
+    // Go to the application form screen
+    navigation.navigate('ApplicationForm', { job });
+  }
   };
+
 
   // Set the header title to the job title
   useEffect(() => {
@@ -99,7 +132,12 @@ const JobDetailsScreen = ({ navigation, route }) => {
       <View style={styles.card}>
         <View style={styles.header}>
           <Text style={styles.title}>{job.title}</Text>
-          <Text style={styles.company}>{job.company}</Text>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ProfileDetail', { user_id: job.employer_id })}
+          >
+            <Text style={styles.company}>{job.company}</Text>
+          </TouchableOpacity>
           
           <View style={styles.locationContainer}>
             <MaterialIcons name="location-on" size={16} color="#666" />
@@ -112,7 +150,37 @@ const JobDetailsScreen = ({ navigation, route }) => {
               <Text style={styles.matchText}>AI Match: {job.match_percentage}%</Text>
             </View>
           )}
+
+          
         </View>
+
+        <View style={styles.header}>
+
+          {job.match_percentage && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>AI Explanation</Text>
+
+            {!justification ? (
+              <TouchableOpacity
+                style={styles.justifyButton}
+                onPress={handleJustifyMatch}
+                disabled={loadingJustification}
+              >
+                {loadingJustification ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.justifyButtonText}>Justify Match</Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.justificationBox}>
+                <Text style={styles.justificationText}>{justification}</Text>
+              </View>
+            )}
+          </View>
+        )}
+        </View>
+        
 
         <View style={styles.section}>
 
@@ -130,6 +198,9 @@ const JobDetailsScreen = ({ navigation, route }) => {
           <Text style={styles.description}>{job.description}</Text>
 
         </View>
+
+        
+
 
         {job.requirements && (
           <View style={styles.section}>
@@ -203,7 +274,7 @@ const styles = StyleSheet.create({
   },
   company: {
     fontSize: 20,
-    color: '#4A6FA5',
+    color: '#5271ff',
     marginBottom: 8,
   },
   locationContainer: {
@@ -245,7 +316,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+    marginBottom: 10
+  },
+  sectionTitleAI: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 10,
+    textAlign: 'center'
   },
   description: {
     fontSize: 16,
@@ -257,7 +335,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applyButton: {
-    backgroundColor: '#4A6FA5',
+    backgroundColor: '#5271ff',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -281,6 +359,29 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 14,
   },
+  justifyButton: {
+  backgroundColor: '#5271ff',
+  padding: 12,
+  borderRadius: 8,
+  alignItems: 'center',
+  marginTop: 10,
+},
+justifyButtonText: {
+  color: '#fff',
+  fontWeight: '600',
+},
+justificationBox: {
+  backgroundColor: '#f0f4fa',
+  padding: 12,
+  borderRadius: 8,
+  marginTop: 10,
+},
+justificationText: {
+  fontSize: 15,
+  color: '#333',
+  lineHeight: 22,
+},
+
 });
 
 export default JobDetailsScreen;

@@ -1,23 +1,17 @@
-// navigation/AppNavigator.js
-import React, { useEffect, useState } from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CommonActions } from '@react-navigation/native';
+import React, { useEffect, useState } from "react";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import LoginScreen from '../screens/LoginScreen';
-import RegisterScreen from '../screens/RegisterScreen';
+// Auth screens
+import LoginScreen from '../screens/Auth/LoginScreen';
+import RegisterScreen from '../screens/Auth/RegisterScreen';
 
-import JobSeekerDashboard from '../screens/JobSeekerDashboard';
-import JobDetailsScreen from '../screens/JobDetailsScreen';
-import ApplicationFormScreen from '../screens/ApplicationFormScreen';
-import ApplicationDetailsScreen from '../screens/ApplicationDetailsScreen';
+// Shared screens
+import EmailVerificationPendingScreen from '../screens/Shared/EmailVerificationPendingScreen';
 
-import EmployerDashboard from '../screens/EmployerDashboard';
-import PostedJobDetailScreen from '../screens/PostedJobDetailScreen';
-import JobApplicantListScreen from '../screens/JobApplicantListScreen';
-import ApplicantDetailScreen from '../screens/ApplicantDetailScreen';
-import JobCreationFormScreen from '../screens/JobCreationFormScreen';
-import JobEditScreen from '../screens/JobEditScreen';
+// Role-based stacks
+import JobSeekerStack from './JobSeekerStack';
+import EmployerStack from './EmployerStack';
 
 
 const Stack = createNativeStackNavigator();
@@ -27,42 +21,61 @@ const AppNavigator = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = await AsyncStorage.getItem('token');
-      const role = await AsyncStorage.getItem('role');
+
+      // await AsyncStorage.clear();
+      console.log("🔍 Running auth check...");
+
+      const token = await AsyncStorage.getItem("token");
+      const role = await AsyncStorage.getItem("role");
+
+      console.log("👉 token:", token);
+      console.log("👉 role:", role);
 
       if (token && role) {
-        setInitialRoute(role === 'job-seeker' ? 'JobSeekerDashboard' : 'EmployerDashboard');
+        console.log("✅ Logged in as:", role);
+        setInitialRoute(role === "job-seeker" ? "JobSeekerStack" : "EmployerStack");
       } else {
-        setInitialRoute('Login');
+        console.log("❌ No login found, going to Login screen");
+        setInitialRoute("Login");
       }
-    };  
+    };
 
     checkAuth();
   }, []);
-
-  if (!initialRoute) return null; // wait for auth check
+  
+  console.log("🚀 Initial route is:", initialRoute);
+  if (!initialRoute) return null; // wait for auth check before rendering
 
   return (
     <Stack.Navigator initialRouteName={initialRoute}>
-      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }}  />
-   
+      {/* Auth */}
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EmailVerificationPendingScreen"
+        component={EmailVerificationPendingScreen}
+        options={{ headerShown: false }}
+      />
 
-      <Stack.Screen name="EmployerDashboard" component={EmployerDashboard} /> 
-      <Stack.Screen name="PostedJobDetailScreen" component={PostedJobDetailScreen} />
-      <Stack.Screen name="JobApplicantListScreen" component={JobApplicantListScreen} />
-      <Stack.Screen name="ApplicantDetailScreen" component={ApplicantDetailScreen} />
-      <Stack.Screen name="JobCreationFormScreen" component={JobCreationFormScreen} />
-      <Stack.Screen name="JobEditScreen" component={JobEditScreen} />
-      {/* ApplicantDetailScreen */}
-      
-      <Stack.Screen name="JobSeekerDashboard" component={JobSeekerDashboard} />
-      <Stack.Screen name="JobDetailsScreen" component={JobDetailsScreen} />
-      <Stack.Screen name="ApplicationFormScreen" component={ApplicationFormScreen} />
-      <Stack.Screen name="ApplicationDetailsScreen" component={ApplicationDetailsScreen} />
-
-
-      
+      {/* Role stacks */}
+      <Stack.Screen
+        name="JobSeekerStack"
+        component={JobSeekerStack}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EmployerStack"
+        component={EmployerStack}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 };

@@ -9,7 +9,8 @@ import {
   Alert,
   ActivityIndicator
 } from 'react-native';
-import { getRequest, putRequest } from '../services/api';
+import { getRequest, putRequest } from '../../services/api';
+
 
 const JobEditScreen = ({ navigation, route }) => {
   // Correct way to access the job object and its ID
@@ -111,7 +112,7 @@ const JobEditScreen = ({ navigation, route }) => {
           [
             {
               text: 'OK',
-              onPress: () => navigation.replace('PostedJobDetailScreen', { job_id })
+              onPress: () => navigation.replace('PostedJobDetail', { job_id })
             }
           ]
         );

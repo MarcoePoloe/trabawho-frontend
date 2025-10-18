@@ -14,7 +14,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../services/api';
+import api from '../../services/api';
+
 
 const ApplicationFormScreen = ({ route, navigation }) => {
   const { job } = route.params || {};
@@ -83,7 +84,7 @@ const ApplicationFormScreen = ({ route, navigation }) => {
         },
       });
   
-      navigation.replace('ApplicationDetailsScreen', { 
+      navigation.replace('ApplicationDetails', { 
         application: {
           application_id: response.data.application_id,
           job_id: job.job_id,

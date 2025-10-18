@@ -8,7 +8,8 @@ import {
   StyleSheet 
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { getRequest } from '../services/api';
+import { getRequest } from '../../services/api';
+
 
 const JobApplicantListScreen = ({ route, navigation }) => {
   const { job } = route.params;
@@ -43,7 +44,7 @@ const JobApplicantListScreen = ({ route, navigation }) => {
     <TouchableOpacity 
       key={applicant.application_id}
       style={styles.applicantCard}
-      onPress={() => navigation.navigate('ApplicantDetailScreen', { 
+      onPress={() => navigation.navigate('ApplicantDetail', { 
         application: applicant,
         job 
       })}
@@ -83,39 +84,51 @@ const JobApplicantListScreen = ({ route, navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Applicants for {job.title}</Text>
-      
-      {paginatedApplicants.length === 0 ? (
-        <Text style={styles.emptyText}>No applicants yet</Text>
-      ) : (
-        <ScrollView style={styles.listContainer}>
-          {paginatedApplicants.map(renderApplicantItem)}
-        </ScrollView>
-      )}
-
-      {/* Pagination Controls */}
-      <View style={styles.pagination}>
-        <TouchableOpacity 
-          onPress={() => setPage(p => Math.max(p - 1, 1))}
-          disabled={page === 1}
-          style={styles.paginationButton}
-        >
-          <Text style={styles.paginationText}>Previous</Text>
-        </TouchableOpacity>
-        
-        <Text style={styles.pageNumber}>Page {page}</Text>
-        
-        <TouchableOpacity
-          onPress={() => setPage(p => p * ITEMS_PER_PAGE < applicants.length ? p + 1 : p)}
-          disabled={page * ITEMS_PER_PAGE >= applicants.length}
-          style={styles.paginationButton}
-        >
-          <Text style={styles.paginationText}>Next</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  <View style={styles.container}>
+    <Text style={styles.header}>Applicants for {job.title}</Text>
+    
+    {applicants.length === 0 ? (
+      <Text style={styles.emptyText}>No applicants yet</Text>
+    ) : (
+      <ScrollView style={styles.listContainer}>
+        {applicants.map((applicant) => (
+          <TouchableOpacity 
+            key={applicant.application_id}
+            style={styles.applicantCard}
+            onPress={() => navigation.navigate('ApplicantDetail', { 
+              application: applicant,
+              job 
+            })}
+          >
+            <View style={styles.applicantInfo}>
+              <Text style={styles.applicantName}>{applicant.applicant?.name || 'No Name'}</Text>
+              <Text style={styles.jobTitle}>{job.title}</Text>
+              <Text style={styles.appliedDate}>
+                Applied: {new Date(applicant.applied_at).toLocaleDateString()}
+              </Text>
+            </View>
+            
+            <View style={[
+              styles.statusBadge,
+              applicant.status === 'accepted' && styles.statusAccepted,
+              applicant.status === 'rejected' && styles.statusRejected
+            ]}>
+              <Text style={styles.statusText}>
+                {applicant.status ? applicant.status.charAt(0).toUpperCase() + applicant.status.slice(1).toLowerCase() : 'Pending'}
+              </Text>
+            </View>
+            
+            <MaterialIcons 
+              name="chevron-right" 
+              size={24} 
+              color="#999" 
+            />
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    )}
+  </View>
+);
 };
 
 const styles = StyleSheet.create({
@@ -137,7 +150,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     flex: 1,
-    marginBottom: 20,
+    // marginBottom: 20,
   },
   applicantCard: {
     backgroundColor: 'white',

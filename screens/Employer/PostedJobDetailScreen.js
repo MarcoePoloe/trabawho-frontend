@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { deleteRequest, getRequest } from '../services/api';
+import { deleteRequest, getRequest } from '../../services/api';
+
 
 const PostedJobDetailScreen = ({ navigation, route }) => {
   const { job_id } = route.params;
@@ -95,14 +96,14 @@ const PostedJobDetailScreen = ({ navigation, route }) => {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate('JobApplicantListScreen', { job })}
+          onPress={() => navigation.navigate('JobApplicantList', { job })}
         >
           <Text style={styles.buttonText}>View Applicants</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.editButton]}
-          onPress={() => navigation.navigate('JobEditScreen', { job })}
+          onPress={() => navigation.navigate('JobEdit', { job })}
         >
           <Text style={styles.buttonText}>Edit Job Details</Text>
         </TouchableOpacity>
