@@ -183,11 +183,7 @@ const ApplicantDetailScreen = ({ route }) => {
       <View style={styles.card}>
         <View style={styles.header}>
           <Text style={styles.jobTitle}>{job?.title || 'Job Title'}</Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ProfileDetail', { user_id: applicantId })}
-          >
-            <Text style={styles.company}>{job?.company || 'Company'}</Text>
-          </TouchableOpacity>
+          <Text style={styles.company}>{job?.company || 'Company'}</Text>
           <Text style={styles.location}>{job?.location || 'Location'}</Text>
 
           {/* Status and Pin Row */}
@@ -230,7 +226,13 @@ const ApplicantDetailScreen = ({ route }) => {
         {/* Applicant Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Applicant Information</Text>
-          <Text style={styles.detail}>Name: {applicantName}</Text>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ProfileDetail', { user_id: applicantId })}
+          >
+            <Text style={styles.detail}>Name: {applicantName}</Text>
+          </TouchableOpacity>
+          
           <Text style={styles.detail}>Email: {applicantEmail}</Text>
         </View>
 

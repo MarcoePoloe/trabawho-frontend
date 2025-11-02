@@ -35,30 +35,41 @@ export default function LoginScreen() {
   const [isForgotLoading, setIsForgotLoading] = useState(false);
   const navigation = useNavigation();
 
-  // Validation helpers
-  const validateEmail = (email) => {
-    const trimmed = email.trim();
+  // Validation helpers (same as RegisterScreen)
+  const validateEmail = (val) => {
+    const trimmed = val.trim();
     if (!trimmed) return 'Email is required';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return 'Enter a valid email';
     return '';
   };
 
-  const validatePassword = (password) => {
-    const trimmed = password.trim();
+  const validatePassword = (val) => {
+    const trimmed = val.trim();
     if (!trimmed) return 'Password is required';
     if (trimmed.length < 6) return 'Must be at least 6 characters';
     return '';
   };
 
-  const validateForm = () => {
+  // Live validation handlers (same as RegisterScreen)
+  const handleEmailChange = (v) => {
+    setEmail(v);
+    setErrors((p) => ({ ...p, email: validateEmail(v) }));
+  };
+
+  const handlePasswordChange = (v) => {
+    setPassword(v);
+    setErrors((p) => ({ ...p, password: validatePassword(v) }));
+  };
+
+  const allValid = !errors.email && !errors.password && email && password;
+
+  const handleLogin = async () => {
+    // Final validation
     const e = validateEmail(email);
     const p = validatePassword(password);
     setErrors({ email: e, password: p });
-    return !e && !p;
-  };
+    if (e || p) return;
 
-  const handleLogin = async () => {
-    if (!validateForm()) return;
     setIsLoading(true);
     try {
       const url = userType === 'job-seeker' ? '/login/job-seeker' : '/login/employer';
@@ -122,7 +133,7 @@ export default function LoginScreen() {
     Alert.alert(
       "Error",
       error.response?.data?.detail ||
-        "We couldn’t send the reset link. Please check your email and try again."
+        "We couldn't send the reset link. Please check your email and try again."
     );
   } finally {
     setIsForgotLoading(false);
@@ -168,7 +179,7 @@ export default function LoginScreen() {
                 placeholderTextColor="#999"
                 style={styles.input}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={handleEmailChange}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 editable={!isLoading}
@@ -185,7 +196,7 @@ export default function LoginScreen() {
                 placeholderTextColor="#999"
                 style={[styles.input, { flex: 1 }]}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={handlePasswordChange}
                 secureTextEntry={!showPassword}
                 editable={!isLoading}
                 returnKeyType="done"
@@ -216,9 +227,9 @@ export default function LoginScreen() {
 
             {/* Login Button */}
             <TouchableOpacity
-              style={[styles.primaryButton, (errors.email || errors.password) && styles.disabledButton]}
+              style={[styles.primaryButton, !allValid && styles.disabledButton]}
               onPress={handleLogin}
-              disabled={isLoading || !!errors.email || !!errors.password}
+              disabled={!allValid || isLoading}
               activeOpacity={0.8}
             >
               {isLoading ? (
@@ -357,7 +368,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   primaryButtonText: { color: '#f5f5f5', fontSize: 18, fontWeight: '600' },
-  disabledButton: { backgroundColor: '#ccc', opacity: 0.7 },
+  disabledButton: { backgroundColor: '#ccc' },
   switchButton: { marginTop: 20, alignItems: 'center' },
   switchButtonText: { color: '#5271ff', fontSize: 14, fontWeight: '500' },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 25 },
@@ -421,5 +432,4 @@ modalButtonText: {
   fontSize: 16,
   fontWeight: '600',
 },
-
 });

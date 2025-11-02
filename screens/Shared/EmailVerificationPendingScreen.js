@@ -41,7 +41,8 @@ export default function EmailVerificationPendingScreen({ route, navigation }) {
   const handleAlreadyVerified = async () => {
     setIsLoading(true);
     try {
-      const res = await getRequest(`/check-verification?email=${email}&role=${role}`);
+      // const res = await getRequest(`/check-verification?email=${email}&role=${role}`);
+      const res = await getRequest(`/check-verification`);
       const verified = res.data?.is_verified;
 
       if (verified) {

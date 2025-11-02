@@ -51,7 +51,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
 
   // Fallback values
   const name = profile.name || profile.company_name || 'Unnamed User';
-  const role = profile.role ? 'Employer' : 'Job Seeker';
+  const role = profile.role === 'job_seeker' ? 'Job Seeker' : 'Employer';
   const bio = profile.bio || 'No bio yet.';
   const photo = profile.photo_url || 'https://via.placeholder.com/150';
   const birthdate = profile.birthdate || 'Not specified';

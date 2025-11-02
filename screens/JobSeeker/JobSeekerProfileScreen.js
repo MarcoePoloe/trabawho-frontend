@@ -143,33 +143,51 @@ finally {
 
   // upload resume
   const handleUploadResume = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+  try {
+    console.log('📁 Starting resume upload process...');
+    
+    const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+    console.log('📄 Document picker result:', result);
 
-      // DocumentPicker returns { type: 'success'|'cancel', uri, name, size }
-      if (!result || result.type !== 'success') return;
-
-      setUploadingResume(true);
-
-      // document picker returns uri and name; adapt to your uploadFile implementation
-      // uploadFile should accept an object with { uri, name, mimeType? }
-      const fileObj = {
-        uri: result.uri,
-        name: result.name || 'resume.pdf',
-        type: 'application/pdf',
-      };
-
-      await uploadFile(fileObj);
-      Toast.show({ type: 'success', text1: 'Resume uploaded successfully!' });
-      await fetchProfileData();
-    } catch (err) {
-      console.error('❌ Resume upload failed:', err);
-      Toast.show({ type: 'error', text1: 'Resume upload failed' });
-    } finally {
-      setUploadingResume(false);
+    // FIX: Check for canceled property instead of type
+    if (result.canceled) {
+      console.log('❌ Document picker cancelled');
+      return;
     }
-  };
 
+    // FIX: Also check if we have assets
+    if (!result.assets || result.assets.length === 0) {
+      console.log('❌ No file selected');
+      return;
+    }
+
+    setUploadingResume(true);
+
+    // FIX: Get the first asset from the assets array
+    const asset = result.assets[0];
+    const fileObj = {
+      uri: asset.uri,
+      name: asset.name || 'resume.pdf',
+      type: asset.mimeType || 'application/pdf',
+    };
+
+    console.log('📦 File object prepared:', fileObj);
+    console.log('🚀 Calling uploadFile helper...');
+
+    await uploadFile(fileObj);
+    
+    console.log('✅ Resume upload successful!');
+    Toast.show({ type: 'success', text1: 'Resume uploaded successfully!' });
+    await fetchProfileData();
+    
+  } catch (err) {
+    console.error('❌ Resume upload failed:', err);
+    console.log('❌ Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+    Toast.show({ type: 'error', text1: 'Resume upload failed: ' + (err.message || 'Unknown error') });
+  } finally {
+    setUploadingResume(false);
+  }
+  };
   const handleViewResume = async () => {
     try {
       const res = await getRequest('/resumes/me');
