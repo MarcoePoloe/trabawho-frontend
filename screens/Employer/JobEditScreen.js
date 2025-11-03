@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator
 } from 'react-native';
+import LocationPicker from "../../components/LocationPicker";
 import { getRequest, putRequest } from '../../services/api';
 
 
@@ -16,7 +17,7 @@ const JobEditScreen = ({ navigation, route }) => {
   // Correct way to access the job object and its ID
   const { job } = route.params || {};
   const job_id = job?.job_id;
-  
+
   console.log('Received job object:', job);
   console.log('Extracted job_id:', job_id);
 
@@ -24,6 +25,9 @@ const JobEditScreen = ({ navigation, route }) => {
     title: '',
     company: '',
     location: '',
+    latitude: null,
+    longitude: null,
+    geocoded_address: '',
     position: '',
     salary: '',
     description: ''
@@ -46,9 +50,12 @@ const JobEditScreen = ({ navigation, route }) => {
         location: job.location || '',
         salary: job.salary || '',
         position: job.position || '',
-        description: job.description || ''
-
+        description: job.description || '',
+        latitude: job.latitude,
+        longitude: job.longitude,
+        geocoded_address: job.geocoded_address || job.location
       });
+
       setLoading(false);
       return;
     }
@@ -58,14 +65,14 @@ const JobEditScreen = ({ navigation, route }) => {
       try {
         setLoading(true);
         const response = await getRequest(`/jobdetails/${job_id}`);
-        
+
         if (response.data) {
           setFormData({
             title: response.data.title || '',
             company: response.data.company || '',
             location: response.data.location || '',
-            salary: response.data.salary || '', 
-            position: response.data.position || '', 
+            salary: response.data.salary || '',
+            position: response.data.position || '',
             description: response.data.description || ''
 
           });
@@ -93,21 +100,25 @@ const JobEditScreen = ({ navigation, route }) => {
     try {
       setSubmitting(true);
       console.log('Submitting update for job:', job_id);
-      
+
       const response = await putRequest(`/jobs/${job_id}`, {
         title: formData.title,
         company: formData.company,
         location: formData.location,
         salary: formData.salary,
         position: formData.position,
-        description: formData.description
+        description: formData.description,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        geocoded_address: formData.geocoded_address
       });
 
+
       console.log('Update response:', response.data);
-      
+
       if (response.data) {
         Alert.alert(
-          'Success', 
+          'Success',
           'Job updated successfully',
           [
             {
@@ -122,10 +133,10 @@ const JobEditScreen = ({ navigation, route }) => {
     } catch (error) {
       console.error('Update error:', error);
       Alert.alert(
-        'Error', 
-        error.response?.data?.message || 
-        error.response?.data?.detail || 
-        error.message || 
+        'Error',
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        error.message ||
         'Failed to update job'
       );
     } finally {
@@ -156,52 +167,70 @@ const JobEditScreen = ({ navigation, route }) => {
         <TextInput
           style={styles.input}
           value={formData.title}
-          onChangeText={(text) => setFormData({...formData, title: text})}
+          onChangeText={(text) => setFormData({ ...formData, title: text })}
           placeholder="Enter job title"
         />
 
-      <Text style={styles.label}>Position *</Text>
+        <Text style={styles.label}>Position *</Text>
         <TextInput
           style={styles.input}
           value={formData.position}
-          onChangeText={(text) => setFormData({...formData, position: text})}
+          onChangeText={(text) => setFormData({ ...formData, position: text })}
           placeholder="Enter Position"
         />
 
-      <Text style={styles.label}>Salary *</Text>
+        <Text style={styles.label}>Salary *</Text>
         <TextInput
           style={styles.input}
           value={formData.salary}
-          onChangeText={(text) => setFormData({...formData, salary: text})}
+          onChangeText={(text) => setFormData({ ...formData, salary: text })}
           placeholder="Enter Salary"
         />
-        
+
         <Text style={styles.label}>Company Name</Text>
         <TextInput
           style={styles.input}
           value={formData.company}
-          onChangeText={(text) => setFormData({...formData, company: text})}
+          onChangeText={(text) => setFormData({ ...formData, company: text })}
           placeholder="Enter company name"
         />
-        
+
         <Text style={styles.label}>Location</Text>
         <TextInput
           style={styles.input}
           value={formData.location}
-          onChangeText={(text) => setFormData({...formData, location: text})}
+          onChangeText={(text) => setFormData({ ...formData, location: text })}
           placeholder="Enter job location"
         />
-        
+
+        <Text style={styles.label}>Map Location *</Text>
+        <LocationPicker
+          initialLocation={{
+            latitude: formData.latitude,
+            longitude: formData.longitude
+          }}
+          onLocationPicked={({ latitude, longitude, geocoded_address }) => {
+            setFormData(prev => ({
+              ...prev,
+              latitude,
+              longitude,
+              geocoded_address,
+              location: geocoded_address // keep backend text field updated
+            }));
+          }}
+        />
+
+
         <Text style={styles.label}>Job Description *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={formData.description}
-          onChangeText={(text) => setFormData({...formData, description: text})}
+          onChangeText={(text) => setFormData({ ...formData, description: text })}
           placeholder="Enter job description"
           multiline
           numberOfLines={6}
         />
-        
+
         <TouchableOpacity
           style={styles.submitButton}
           onPress={handleSubmit}

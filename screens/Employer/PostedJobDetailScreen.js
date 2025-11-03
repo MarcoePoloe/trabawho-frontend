@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking, Platform } from 'react-native';
+import MapView, { Marker } from "react-native-maps";
+
 import { deleteRequest, getRequest } from '../../services/api';
 
 
@@ -36,6 +38,23 @@ const PostedJobDetailScreen = ({ navigation, route }) => {
 
     fetchJobDetails();
   }, [job_id]);
+
+  const openInMaps = () => {
+    const lat = job.latitude;
+    const lon = job.longitude;
+
+    if (!lat || !lon) {
+      Alert.alert("Location unavailable", "This job has no map location stored.");
+      return;
+    }
+
+    const url = Platform.select({
+      ios: `http://maps.apple.com/?ll=${lat},${lon}`,
+      android: `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
+    });
+
+    Linking.openURL(url);
+  };
 
 
   const handleDelete = async () => {
@@ -77,7 +96,44 @@ const PostedJobDetailScreen = ({ navigation, route }) => {
         <Text style={styles.title}>{job.title}</Text>
         <Text style={styles.company}>{job.company}</Text>
         <Text style={styles.location}>{job.location}</Text>
-        {/* <Text style={styles.location}>{job.job_id}</Text> */}
+
+        <Text style={{ color: "#666", fontSize: 12, marginBottom: 10 }}>
+            Tap to open in Maps
+          </Text>
+        {/* Mini Map Preview */}
+        {job.latitude && job.longitude && (
+          <TouchableOpacity onPress={openInMaps} activeOpacity={0.8}>
+            <MapView
+              style={{
+                height: 150,
+                width: "100%",
+                borderRadius: 8,
+                marginBottom: 15
+              }}
+              initialRegion={{
+                latitude: job.latitude,
+                longitude: job.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01
+              }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              pitchEnabled={false}
+              rotateEnabled={false}
+            >
+              <Marker coordinate={{ latitude: job.latitude, longitude: job.longitude }} />
+            </MapView>
+          </TouchableOpacity>
+        )}
+        {/* Location */}
+        <TouchableOpacity onPress={openInMaps}>
+          <Text style={{ color: "#666", fontSize: 12, marginBottom: 1 }}>
+            {job.geocoded_address || job.location}
+          </Text>
+          <Text style={{ color: "#666", fontSize: 12, marginBottom: 10 }}>
+            Tap to open in Maps
+          </Text>
+        </TouchableOpacity>
         
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Position: { } 

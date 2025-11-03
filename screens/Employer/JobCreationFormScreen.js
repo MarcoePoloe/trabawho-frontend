@@ -10,6 +10,8 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { postRequest } from '../../services/api';
+import LocationPicker from '../../components/LocationPicker';
+
 
 const JobCreationFormScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -29,6 +31,8 @@ const JobCreationFormScreen = ({ navigation }) => {
     }));
   };
 
+  const [locationData, setLocationData] = useState(null);
+
   const handleSubmit = async () => {
     // Validate required fields
     if (!formData.title.trim()) {
@@ -39,6 +43,11 @@ const JobCreationFormScreen = ({ navigation }) => {
       Alert.alert('Error', 'Job description is required');
       return;
     }
+
+    if (!locationData) {
+  Alert.alert('Error', 'Please select a location on the map');
+  return;
+}
 
     try {
       setSubmitting(true);
@@ -52,7 +61,11 @@ const JobCreationFormScreen = ({ navigation }) => {
         location: formData.location,
         description: formData.description,
         salary: formData.salary,
-        position: formData.position
+        position: formData.position,
+
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        geocoded_address: locationData.geocoded_address
       });
 
       // Debug: Log full response
@@ -150,6 +163,10 @@ const JobCreationFormScreen = ({ navigation }) => {
           placeholderTextColor="#999"
           maxLength={80}
         />
+
+        <Text style={styles.label}>Map Location *</Text>
+        <LocationPicker onLocationPicked={setLocationData} />
+
         
         <Text style={styles.label}>Job Description *</Text>
         <TextInput

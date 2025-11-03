@@ -1,0 +1,1 @@
+export const MAPBOX_TOKEN = "pk.eyJ1IjoibWFyY29lcG9sb2UiLCJhIjoiY21oamppNHhzMWRsMTJqcHlzaW9sNTdkZyJ9.SnfDygevbA4jC4qFxn6Ybw";
