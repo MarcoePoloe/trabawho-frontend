@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import LocationPicker from "../../components/LocationPicker";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
@@ -22,6 +23,10 @@ import Toast from 'react-native-toast-message';
 import { getRequest, putWithAuth } from '../../services/api';
 import { uploadFile } from '../../services/upload';
 import { useNavigation } from '@react-navigation/native';
+import MapView, { Marker } from "react-native-maps";
+import * as Linking from "expo-linking";
+import { Platform } from "react-native";
+
 
 export default function JobSeekerProfileScreen() {
   const [profile, setProfile] = useState({});
@@ -35,6 +40,12 @@ export default function JobSeekerProfileScreen() {
   const [uploadingResume, setUploadingResume] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const navigation = useNavigation();
+  const [locationData, setLocationData] = useState({
+    latitude: null,
+    longitude: null,
+    geocoded_address: "",
+  });
+
 
   // fetch profile info
   const fetchProfileData = useCallback(async () => {
@@ -69,7 +80,18 @@ export default function JobSeekerProfileScreen() {
 
   useEffect(() => {
     fetchProfileData();
-  }, [fetchProfileData]);
+  }, []);
+
+  useEffect(() => {
+    if (profile) {
+      setLocationData({
+        latitude: profile.latitude ?? null,
+        longitude: profile.longitude ?? null,
+        geocoded_address: profile.geocoded_address ?? "",
+      });
+    }
+  }, [profile]);
+
 
   // upload profile photo
    const handlePhotoChange = async () => {
@@ -128,6 +150,10 @@ finally {
       maybeAppend('location', editData?.location);
       maybeAppend('contact_info', editData?.contact_info);
       maybeAppend('contact_email', editData?.contact_email);
+
+      maybeAppend("latitude", locationData.latitude);
+      maybeAppend("longitude", locationData.longitude);
+      maybeAppend("geocoded_address", locationData.geocoded_address);
 
       await putWithAuth('/PutProfileInfo', fd, token, true);
       Toast.show({ type: 'success', text1: 'Profile updated successfully!' });
@@ -284,6 +310,75 @@ finally {
               <Text style={styles.infoLabel}>Home Address</Text>
               <Text style={styles.infoText}>{safe(profile.location, 'Not specified')}</Text>
             </View>
+            
+            <View style={styles.infoItem}>
+  <Text style={styles.infoLabel}>Home Address</Text>
+  <Text style={styles.infoText}>{safe(profile.location, 'Not specified')}</Text>
+</View>
+
+{/* Map Location - Tight spacing like above */}
+<View style={styles.infoItem}>
+  <Text style={styles.infoLabel}>Map Location</Text>
+  {profile.latitude && profile.longitude ? (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={() => {
+        const url = Platform.select({
+          ios: `http://maps.apple.com/?ll=${profile.latitude},${profile.longitude}`,
+          android: `https://www.google.com/maps/search/?api=1&query=${profile.latitude},${profile.longitude}`
+        });
+        Linking.openURL(url);
+      }}
+    >
+      <Text style={{ color: "#444", fontSize: 12, marginBottom: 2 }}>
+        Tap to view in Maps
+      </Text>
+      <MapView
+        style={{
+          height: 150,
+          width: "100%",
+          borderRadius: 10,
+          marginTop: 0,
+        }}
+        initialRegion={{
+          latitude: profile.latitude,
+          longitude: profile.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+        scrollEnabled={false}
+        zoomEnabled={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
+      >
+        <Marker
+          coordinate={{
+            latitude: profile.latitude,
+            longitude: profile.longitude,
+          }}
+        />
+      </MapView>
+      <Text style={[styles.infoText, { color: "#444", fontSize: 14, marginTop: 4 }]}>
+        {safe(profile.geocoded_address || profile.location, 'Not specified')}
+      </Text>
+    </TouchableOpacity>
+  ) : (
+    <View style={{
+      height: 150,
+      width: "100%",
+      backgroundColor: "#f0f0f0",
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+    }}>
+      <Text style={{ color: "#777" }}>📍 No location set</Text>
+      <Text style={{ color: "#5271ff", fontSize: 12 }}>
+        Edit profile to add location
+      </Text>
+    </View>
+  )}
+</View>
+
 
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Date of Birth</Text>
@@ -394,6 +489,28 @@ finally {
                 value={editData?.location ?? ''}
                 onChangeText={(t) => setEditData({ ...editData, location: t })}
               />
+
+              <Text style={styles.input}>Home Address (Map Pin)</Text>
+
+              <LocationPicker
+                initialLocation={{
+                  latitude: locationData.latitude,
+                  longitude: locationData.longitude,
+                }}
+                onLocationPicked={(loc) => {
+                  setLocationData({
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                    geocoded_address: loc.geocoded_address,
+                  });
+
+                  // setEditData({
+                  //   ...editData,
+                  //   location: loc.geocoded_address, // keep text updated too
+                  // });
+                }}
+              />
+
               <TextInput
                 style={styles.input}
                 placeholder="Contact Info"

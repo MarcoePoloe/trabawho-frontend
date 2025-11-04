@@ -3,7 +3,17 @@ import api from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export async function fetchAvailableJobs() {
-  return api.get('/jobs');
+  const lat = await AsyncStorage.getItem("user_lat");
+  const lon = await AsyncStorage.getItem("user_lon");
+
+  let url = "/get-jobs";
+
+  // Only add coords if available
+  if (lat && lon) {
+    url += `?lat=${lat}&lon=${lon}`;
+  }
+
+  return api.get(url);
 }
 
 export async function fetchJobMatches() {

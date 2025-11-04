@@ -39,7 +39,8 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-vector-icons": "^10.2.0",
     "react-native-web": "^0.20.0",
-    "react-navigation": "^5.0.0"
+    "react-navigation": "^5.0.0",
+    "@react-native-community/slider": "4.5.6"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

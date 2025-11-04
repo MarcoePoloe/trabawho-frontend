@@ -12,6 +12,8 @@ import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
 import { getRequest, postRequest } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
+import MapView, { Marker } from 'react-native-maps';
+import { Linking, Platform } from 'react-native';
 
 
 const JobDetailsScreen = ({ navigation, route }) => {
@@ -19,11 +21,10 @@ const JobDetailsScreen = ({ navigation, route }) => {
   const [hasApplied, setHasApplied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [justification, setJustification] = useState(null);
-const [loadingJustification, setLoadingJustification] = useState(false);
-
+  const [loadingJustification, setLoadingJustification] = useState(false);
   const [applicationId, setApplicationId] = useState(null);
   const isFocused = useIsFocused();
-
+  
   const fetchApplicationStatus = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -154,6 +155,56 @@ const [loadingJustification, setLoadingJustification] = useState(false);
           
         </View>
 
+         {/* Map Location Section */}
+{job.latitude && job.longitude ? (
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>Job Location</Text>
+
+    <View style={{ height: 260, borderRadius: 8, overflow: 'hidden', marginTop: 10 }}>
+      <MapView
+        style={{ flex: 1 }}
+        initialRegion={{
+          latitude: job.latitude,
+          longitude: job.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+        scrollEnabled={true}   // ✅ allow moving map
+        zoomEnabled={true}     // ✅ allow zoom
+        pitchEnabled={true}
+        rotateEnabled={true}
+        showsCompass={true}
+        showsScale={true}
+      >
+        <Marker coordinate={{ latitude: job.latitude, longitude: job.longitude }} />
+      </MapView>
+    </View>
+
+    {/* Open in Maps */}
+    <TouchableOpacity
+      onPress={() => {
+        const url = Platform.select({
+          ios: `http://maps.apple.com/?daddr=${job.latitude},${job.longitude}`,
+          android: `geo:${job.latitude},${job.longitude}?q=${job.latitude},${job.longitude}`,
+        });
+        Linking.openURL(url);
+      }}
+    >
+      <Text style={{ marginTop: 8, color: '#5271ff', fontWeight: '600' }}>
+        Open in Maps
+      </Text>
+    </TouchableOpacity>
+  </View>
+) : (
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>Job Location</Text>
+    <Text style={{ color: '#777' }}>Location not available</Text>
+  </View>
+)}
+   
+
+
+
         <View style={styles.header}>
 
           {job.match_percentage && (
@@ -179,8 +230,7 @@ const [loadingJustification, setLoadingJustification] = useState(false);
             )}
           </View>
         )}
-        </View>
-        
+        </View> 
 
         <View style={styles.section}>
 
@@ -198,9 +248,6 @@ const [loadingJustification, setLoadingJustification] = useState(false);
           <Text style={styles.description}>{job.description}</Text>
 
         </View>
-
-        
-
 
         {job.requirements && (
           <View style={styles.section}>

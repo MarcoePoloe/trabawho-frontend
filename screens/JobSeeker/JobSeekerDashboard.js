@@ -14,12 +14,12 @@ import {
   TextInput,
   Modal
 } from 'react-native';
-import { uploadFile } from '../../services/upload';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { getRequest } from '../../services/api';
 import { getToken } from '../../services/Auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as DocumentPicker from 'expo-document-picker';
+import Slider from '@react-native-community/slider';
+
 
 const ITEMS_PER_PAGE = 5;
 
@@ -33,8 +33,12 @@ const JobSeekerDashboard = ({ navigation, route }) => {
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [jobsPage, setJobsPage] = useState(1);
+  const [userLat, setUserLat] = useState(null);
+  const [userLon, setUserLon] = useState(null);
+  const USER_LOCATION_KEY = "user_coords";
 
   // Filters
+  const [radiusKm, setRadiusKm] = useState(10); // default 10km
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
@@ -56,15 +60,7 @@ const JobSeekerDashboard = ({ navigation, route }) => {
     checkAuth();
   }, [navigation]);
 
-  const fetchData = async () => {
-    const t = await getToken();
-    setToken(t);
-    await fetchName(t);
-    await fetchMatches(t);
-    await fetchAllJobs();
-  };
-
-  useEffect(() => {
+    useEffect(() => {
     const unsubscribe = navigation.addListener('focus', fetchData);
     if (route.params?.refreshApplications) {
       fetchData();
@@ -82,11 +78,136 @@ const JobSeekerDashboard = ({ navigation, route }) => {
   const fetchName = async (authToken) => {
     try {
       const res = await getRequest('/me', authToken);
+      const user = res.data;
+
       setName(res.data.name);
+      setUserLat(user.latitude);
+      setUserLon(user.longitude);
     } catch (error) {
       console.warn('Failed to fetch name:', error);
     }
   };
+
+  // --- fetchAndCacheUserCoords (returns { lat, lon }) ---
+  const fetchAndCacheUserCoords = async (authToken) => {
+    try {
+      // 1) Try cached coords first
+      const cached = await AsyncStorage.getItem(USER_LOCATION_KEY);
+      let lat = null, lon = null;
+
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed?.lat && parsed?.lon) {
+            lat = parsed.lat;
+            lon = parsed.lon;
+            setUserLat(lat);
+            setUserLon(lon);
+            console.log("✅ Loaded cached coords:", lat, lon);
+          }
+        } catch (e) {
+          console.log("⚠️ Failed parsing cached coords:", e);
+        }
+      }
+
+      // 2) Fetch fresh profile from /me (prefer this)
+      // Pass authToken if available to getRequest
+      const res = await getRequest('/me', authToken);
+      const freshLat = res?.data?.latitude;
+      const freshLon = res?.data?.longitude;
+
+      if (freshLat && freshLon) {
+        setUserLat(freshLat);
+        setUserLon(freshLon);
+
+        // cache as numbers
+        await AsyncStorage.setItem(USER_LOCATION_KEY, JSON.stringify({
+          lat: freshLat,
+          lon: freshLon
+        }));
+
+        console.log("📍 Updated & cached coords:", freshLat, freshLon);
+        return { lat: freshLat, lon: freshLon };
+      }
+
+      // no fresh coords, return whatever we had (possibly null)
+      return { lat, lon };
+    } catch (err) {
+      console.log("❌ Failed to fetch or cache user coords:", err);
+      return { lat: null, lon: null };
+    }
+  };
+
+  // --- fetchAllJobs (now accepts coordinates and token) ---
+  const fetchAllJobs = async (lat = null, lon = null, authToken = null) => {
+    setLoadingJobs(true);
+    try {
+      // Build base URL (your backend is /get-jobs)
+      let url = `/get-jobs?sort_by=${sortBy}&sort_order=${sortOrder}`;
+
+      if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+      if (positionFilter) url += `&position=${encodeURIComponent(positionFilter)}`;
+      if (locationFilter) url += `&location=${encodeURIComponent(locationFilter)}`;
+
+      // prefer explicit params, fall back to state
+      const useLat = lat ?? userLat;
+      const useLon = lon ?? userLon;
+
+      if (useLat && useLon) {
+        url += `&lat=${useLat}&lon=${useLon}`;
+      }
+      if (radiusKm) url += `&radius=${radiusKm}`;
+
+      console.log("➡️ Fetching jobs with URL:", url, "token present:", !!authToken);
+
+      // pass authToken to getRequest if available
+      const res = await getRequest(url, authToken);
+
+      // Defensive logging of the full response
+      console.log("FULL JOB RESPONSE:", res?.data);
+
+      // Accept either { jobs: [...] } or an array directly
+      const jobs = res?.data?.jobs ?? res?.data ?? [];
+      if (!Array.isArray(jobs)) {
+        console.warn("⚠️ Response jobs is not an array. Setting jobs to empty array.");
+        setAllJobs([]);
+      } else {
+        setAllJobs(jobs);
+        console.log("JOB SAMPLE:", jobs[0]);
+      }
+
+      setJobsPage(1);
+    } catch (error) {
+      console.error('Error fetching all jobs:', error);
+      Alert.alert('Error', 'Failed to fetch job listings');
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
+
+  // --- fetchData (waits for coords and then calls fetchAllJobs with token) ---
+  const fetchData = async () => {
+    try {
+      const t = await getToken();
+      setToken(t);
+
+      // fetch basic profile/name (keeps UI responsive)
+      await fetchName(t);
+
+      // fetch matches in parallel (optional) but we still await for proper ordering
+      await fetchMatches(t);
+
+      // fetch coords (returns { lat, lon })
+      const { lat, lon } = await fetchAndCacheUserCoords(t);
+
+      // finally fetch jobs using coords + auth token
+      await fetchAllJobs(lat, lon, t);
+    } catch (err) {
+      console.log("❌ fetchData error:", err);
+    }
+  };
+
+
 
   const fetchMatches = async (authToken) => {
     setLoadingMatches(true);
@@ -97,24 +218,6 @@ const JobSeekerDashboard = ({ navigation, route }) => {
       console.error('Error fetching matches:', error);
     } finally {
       setLoadingMatches(false);
-    }
-  };
-
-  const fetchAllJobs = async () => {
-    setLoadingJobs(true);
-    try {
-      let url = `/jobs/available?sort_by=${sortBy}&sort_order=${sortOrder}`;
-      if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
-      if (positionFilter) url += `&position=${encodeURIComponent(positionFilter)}`;
-      if (locationFilter) url += `&location=${encodeURIComponent(locationFilter)}`;
-      const res = await getRequest(url);
-      setAllJobs(res.data?.jobs || []);
-      setJobsPage(1);
-    } catch (error) {
-      console.error('Error fetching all jobs:', error);
-      Alert.alert('Error', 'Failed to fetch job listings');
-    } finally {
-      setLoadingJobs(false);
     }
   };
 
@@ -273,7 +376,31 @@ const JobSeekerDashboard = ({ navigation, route }) => {
                 onSubmitEditing={handleSearch}
               />
             </View>
+
+            
           </View>
+
+          {/* Radius Filter */}
+          <View style={{ marginTop: 10 }}>
+            <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 6 }}>
+              Search Radius: {radiusKm} km
+            </Text>
+
+            <Slider
+              minimumValue={1}
+              maximumValue={100}
+              step={1}
+              value={radiusKm}
+              onValueChange={(value) => setRadiusKm(value)}
+              minimumTrackTintColor="#5271ff"
+              style={{ width: '100%' }}
+            />
+
+            <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+              Drag to change search radius
+            </Text>
+          </View>
+
 
           {/* Sort Filter */}
           <View style={styles.sortRow}>
@@ -305,8 +432,15 @@ const JobSeekerDashboard = ({ navigation, route }) => {
                     >
                       <Text style={styles.jobTitle}>{item.title}</Text>
                       <Text style={styles.company}>{item.company}</Text>
-                      <Text style={styles.location}>{item.location}</Text>
+                      
+                      <Text style={styles.location}>
+                        {item.location}
+                        {item.distance_km != null && (
+                          <Text style={styles.distance}> • {item.distance_km.toFixed(1)} km away</Text>
+                        )}
+                      </Text>
                       {item.position && <Text style={styles.position}>{item.position}</Text>}
+                      
                     </TouchableOpacity>
                   ))}
                 </>
@@ -372,6 +506,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginRight: 10,
+  },
+  distance: {
+    fontSize: 13,
+    color: '#5271ff',
+    fontWeight: '500',
+    marginBottom: 4,
   },
   searchButton: {
     backgroundColor: '#5271ff',
