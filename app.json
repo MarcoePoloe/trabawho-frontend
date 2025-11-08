@@ -12,9 +12,6 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "packagerOpts": {
-      "hostType": "lan"
-    },
     "ios": {
       "supportsTablet": true
     },
