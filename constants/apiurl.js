@@ -1,3 +1,3 @@
-export const API_URL = 'https://tiles-layout-student-oxide.trycloudflare.com';
+export const API_URL = 'https://machine-focal-views-spirits.trycloudflare.com';
 // Production URL
 // export const API_URL = 'https://trabawho-backend.onrender.com';
