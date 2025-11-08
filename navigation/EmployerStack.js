@@ -24,6 +24,8 @@ import NotificationsScreen from '../screens/Shared/NotificationsScreen';
 import ProfileDetailScreen from '../screens/Shared/ProfileDetailScreen';
 import SettingsScreen from '../screens/Shared/SettingsScreen';
 import NotificationBell from "../components/NotificationBell"; 
+import InterviewDetailScreen from '../screens/Shared/InterviewDetailScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -101,6 +103,12 @@ export default function EmployerStack() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: 'Notifications Screen' }} />
       <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} options={{ headerShown: true, title: 'User Profile' }}/>
       <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ headerShown: true, title: 'Profile Settings' }}/>
+      <Stack.Screen
+        name="InterviewDetail"
+        component={InterviewDetailScreen}
+        options={{ headerShown: true, title: 'Interview Details' }}
+      />
+
     </Stack.Navigator>
   );
 }

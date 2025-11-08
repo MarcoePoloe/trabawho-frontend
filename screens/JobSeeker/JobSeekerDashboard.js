@@ -60,7 +60,7 @@ const JobSeekerDashboard = ({ navigation, route }) => {
     checkAuth();
   }, [navigation]);
 
-    useEffect(() => {
+  useEffect(() => {
     const unsubscribe = navigation.addListener('focus', fetchData);
     if (route.params?.refreshApplications) {
       fetchData();
@@ -68,6 +68,8 @@ const JobSeekerDashboard = ({ navigation, route }) => {
     fetchData();
     return unsubscribe;
   }, [navigation, route.params]);
+
+
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -193,12 +195,16 @@ const JobSeekerDashboard = ({ navigation, route }) => {
 
       // fetch basic profile/name (keeps UI responsive)
       await fetchName(t);
-
-      // fetch matches in parallel (optional) but we still await for proper ordering
-      await fetchMatches(t);
-
-      // fetch coords (returns { lat, lon })
+      // ✅ First fetch coords (returns { lat, lon })
       const { lat, lon } = await fetchAndCacheUserCoords(t);
+
+      // ✅ Wait until coords are definitely set before fetching matches
+      if (lat && lon) {
+        await fetchMatches(t, lat, lon);
+      } else {
+        console.log("⚠️ Skipping AI matches — no valid location found yet.");
+      }
+
 
       // finally fetch jobs using coords + auth token
       await fetchAllJobs(lat, lon, t);
@@ -209,26 +215,32 @@ const JobSeekerDashboard = ({ navigation, route }) => {
 
 
 
-  const fetchMatches = async (authToken) => {
+  const fetchMatches = async (authToken, lat = null, lon = null) => {
   setLoadingMatches(true);
   try {
     let url = '/match-jobs';
 
-    // ✅ append user coords if available
-    if (userLat && userLon) {
-      url += `?lat=${userLat}&lon=${userLon}`;
+    // ✅ always use latest coords, not possibly stale state
+    const useLat = lat ?? userLat;
+    const useLon = lon ?? userLon;
+
+    if (useLat && useLon) {
+      url += `?lat=${useLat}&lon=${useLon}`;
+    } else {
+      console.log("⚠️ No coords available for AI matches");
     }
 
     const res = await getRequest(url, authToken);
     setMatches(res.data || []);
-    
-    console.log("AI Matches fetched:", res.data?.[0]);
+
+    console.log("✅ AI Matches fetched:", res.data?.[0]);
   } catch (error) {
     console.error('Error fetching matches:', error);
   } finally {
     setLoadingMatches(false);
   }
 };
+
 
 
   const topMatches = matches.slice(0, 3);

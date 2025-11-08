@@ -17,13 +17,38 @@ export default function AllAIMatchesScreen({ navigation }) {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [userLat, setUserLat] = useState(null);
+  const [userLon, setUserLon] = useState(null);
 
+  // ✅ Fetch user coordinates from AsyncStorage (cached by dashboard)
+  const loadUserCoords = async () => {
+    try {
+      const cached = await AsyncStorage.getItem("user_coords");
+      if (cached) {
+        const { lat, lon } = JSON.parse(cached);
+        setUserLat(lat);
+        setUserLon(lon);
+        console.log("📍 Loaded user coords:", lat, lon);
+      }
+    } catch (err) {
+      console.warn("⚠️ Failed to load user coords:", err);
+    }
+  };
+
+  // ✅ Fetch AI Matches (includes lat/lon)
   const fetchMatches = async () => {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem("token");
-      const res = await getRequest(`/match-jobs`, token);
+      let url = "/match-jobs";
 
+      if (userLat && userLon) {
+        url += `?lat=${userLat}&lon=${userLon}`;
+      }
+
+      console.log("➡️ Fetching AI matches with URL:", url);
+
+      const res = await getRequest(url, token);
       const rawMatches = res.data?.matches || res.data || [];
 
       const formatted = rawMatches.map((job) => ({
@@ -43,31 +68,43 @@ export default function AllAIMatchesScreen({ navigation }) {
   };
 
   useEffect(() => {
-    fetchMatches();
+    // Ensure we load coords first, then fetch matches
+    (async () => {
+      await loadUserCoords();
+    })();
   }, []);
+
+  useEffect(() => {
+    // Fetch matches only when coords are available
+    if (userLat !== null && userLon !== null) {
+      fetchMatches();
+    }
+  }, [userLat, userLon]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchMatches();
-  }, []);
+  }, [userLat, userLon]);
 
   const renderJob = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
-      onPress={() =>
-        navigation.navigate("JobDetails", {
-          job_id: item.job_id,
-          rating: item.match_percentage,
-        })
-      }
+      onPress={() => navigation.navigate("JobDetails", { job: item })}
     >
       <Text style={styles.jobTitle}>{item.title}</Text>
       <Text style={styles.company}>{item.company}</Text>
+
       <View style={styles.scoreRow}>
-        <Ionicons name="sparkles-outline" size={14} color="#5271ff" />
-        <Text style={styles.matchScore}>
-          {item.match_percentage ? `${item.match_percentage}% Match` : "N/A"}
-        </Text>
+        {item.match_percentage != null && (
+          <Text style={styles.matchScore}>
+            {item.match_percentage}% Match
+          </Text>
+        )}
+        {item.distance_km != null && (
+          <Text style={styles.distance}>
+            • {item.distance_km.toFixed(1)} km away
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -117,9 +154,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 6,
-    gap: 4,
+    gap: 6,
   },
-  matchScore: { color: "#555", fontSize: 13 },
+  matchScore: { color: "#5271ff", fontWeight: "600", fontSize: 13 },
+  distance: { color: "#777", fontSize: 13 },
   emptyText: { textAlign: "center", color: "#777", marginTop: 40 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 });

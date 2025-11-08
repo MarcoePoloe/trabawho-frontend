@@ -81,6 +81,44 @@ export async function putWithForm(endpoint, formData) {
   return api.put(endpoint, formData, { headers });
 }
 
+export async function putForm(endpoint, data, isMultipart = false) {
+  const token = await AsyncStorage.getItem("token");
+  let headers = {
+    Accept: "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+
+  let payload;
+
+  if (isMultipart) {
+    // If FormData already, leave it
+    if (data instanceof FormData) {
+      payload = data;
+    } else {
+      payload = new FormData();
+      for (const key in data) {
+        if (data[key] !== undefined && data[key] !== null)
+          payload.append(key, data[key]);
+      }
+    }
+    headers["Content-Type"] = "multipart/form-data";
+  } else {
+    // For x-www-form-urlencoded
+    if (data instanceof URLSearchParams) {
+      payload = data;
+    } else {
+      payload = new URLSearchParams();
+      for (const key in data) {
+        if (data[key] !== undefined && data[key] !== null)
+          payload.append(key, String(data[key]));
+      }
+    }
+    headers["Content-Type"] = "application/x-www-form-urlencoded";
+  }
+
+  return api.put(endpoint, payload, { headers });
+}
+
 export async function deleteRequest(endpoint) {
   const token = await AsyncStorage.getItem('token');
   const headers = {

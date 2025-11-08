@@ -23,6 +23,7 @@ const JobDetailsScreen = ({ navigation, route }) => {
   const [loadingJustification, setLoadingJustification] = useState(false);
   const [applicationId, setApplicationId] = useState(null);
   const isFocused = useIsFocused();
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchApplicationStatus = async () => {
     try {
@@ -52,6 +53,39 @@ const JobDetailsScreen = ({ navigation, route }) => {
       setLoading(false);
     }
   };
+
+ const handleQuickApply = async () => {
+  try {
+    setSubmitting(true);
+    console.log("🚀 Sending POST to:", `/applications/quick-apply/${job.job_id}`);
+
+    const response = await postRequest(`/applications/quick-apply/${job.job_id}`);
+    console.log("✅ Quick Apply Response:", response);
+
+    const data = response?.data || response;
+
+    if (data?.application_id) {
+      Alert.alert("Success", "Application submitted successfully!");
+
+      // 🧭 Pass the same fields ApplicationDetailsScreen expects
+      navigation.navigate("ApplicationDetails", {
+        application_id: data.application_id,
+        status: data.status, // <── fixes the undefined status crash
+        job_id: job.job_id,
+      });
+    } else {
+      Alert.alert("Notice", data?.message || "Application submitted.");
+    }
+  } catch (err) {
+    console.error("❌ Quick apply failed:", err);
+    Alert.alert(
+      "Error",
+      err?.response?.data?.detail || err.message || "Quick apply failed."
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   // NEW: Updated justify match function with all required parameters
   const handleJustifyMatch = async () => {
@@ -401,6 +435,29 @@ const JobDetailsScreen = ({ navigation, route }) => {
             <Text style={styles.description}>{job.requirements}</Text>
           </View>
         )}
+
+        {/* {!hasApplied && (
+          <View style={{ marginTop: 12 }}>
+            <TouchableOpacity
+              style={[styles.applyButton, { backgroundColor: "#2f9e44" }]}
+              onPress={handleQuickApply}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.applyButtonText}>Quick Apply</Text>
+              )}
+            </TouchableOpacity>
+
+            <Text style={{ textAlign: "center", marginTop: 6, color: "#555" }}>
+              Applies instantly using your saved resume
+            </Text>
+          </View>
+        )} */}
+
+
+
 
         <View style={styles.applyContainer}>
           <TouchableOpacity

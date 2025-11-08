@@ -14,6 +14,7 @@ import ApplicationDetailsScreen from "../screens/JobSeeker/ApplicationDetailsScr
 import JobSeekerProfileScreen from "../screens/JobSeeker/JobSeekerProfileScreen";
 import AllAIMatchesScreen from "../screens/JobSeeker/AllAIMatchesScreen";
 
+import InterviewDetailScreen from '../screens/Shared/InterviewDetailScreen';
 
 import NotificationsScreen from "../screens/Shared/NotificationsScreen";
 import ProfileDetailScreen from '../screens/Shared/ProfileDetailScreen';
@@ -100,6 +101,12 @@ export default function JobSeekerStack() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
       <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} options={{ headerShown: true, title: 'User Profile' }}/>
       <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ headerShown: true, title: 'Profile Settings' }}/>
+      <Stack.Screen
+        name="InterviewDetail"
+        component={InterviewDetailScreen}
+        options={{ headerShown: true, title: 'Interview Details' }}
+      />
+
     </Stack.Navigator>
   );
 }

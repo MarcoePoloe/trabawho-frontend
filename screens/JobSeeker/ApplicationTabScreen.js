@@ -40,11 +40,14 @@ export default function ApplicationTabScreen() {
 
   // Status options
   const statusOptions = [
-    { label: "All Statuses", value: "" },
-    { label: "Submitted", value: "submitted" },
-    { label: "Accepted", value: "accepted" },
-    { label: "Rejected", value: "rejected" },
-  ];
+  { label: "All Statuses", value: "" },
+  { label: "Submitted", value: "submitted" },
+  { label: "Viewed", value: "viewed" },
+  { label: "Under Review", value: "under_review" },
+  { label: "Interview", value: "interview_scheduled" },
+  { label: "Accepted", value: "accepted" },
+  { label: "Rejected", value: "rejected" },
+];
 
   // Sort options
   const sortOptions = [
@@ -164,16 +167,37 @@ export default function ApplicationTabScreen() {
   };
 
   const getStatusColor = (status) => {
-    switch ((status || "").toLowerCase()) {
-      case "accepted":
-        return "#79c97a";
-      case "rejected":
-        return "#ff6d6d";
-      default:
-        return "#ccc";
-    }
-  };
+  switch ((status || "").toLowerCase()) {
+    case "submitted":
+      return "#6c757d"; // gray
+    case "viewed":
+      return "#5271ff"; // blue
+    case "under_review":
+      return "#ffb84d"; // amber
+    case "interview_scheduled":
+      return "#17a2b8"; // teal
+    case "accepted":
+      return "#28a745"; // green
+    case "rejected":
+      return "#dc3545"; // red
+    default:
+      return "#adb5bd"; // light gray fallback
+  }
+};
 
+const formatStatusLabel = (status) => {
+  if (!status) return "Submitted";
+
+  const normalized = status.replace(/_/g, " ").trim().toLowerCase();
+
+  if (normalized === "interview scheduled") return "Interview";
+
+  // Capitalize first letter of each word
+  return normalized
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
@@ -194,12 +218,7 @@ export default function ApplicationTabScreen() {
             { backgroundColor: getStatusColor(item.status) },
           ]}
         >
-          <Text style={styles.statusText}>
-            {item.status
-              ? item.status.charAt(0).toUpperCase() +
-                item.status.slice(1).toLowerCase()
-              : "Submitted"}
-          </Text>
+          <Text style={styles.statusText}>{formatStatusLabel(item.status)}</Text>
         </View>
         <Text style={styles.viewIndicator}>Tap to view →</Text>
       </View>
