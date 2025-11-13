@@ -2,6 +2,8 @@ import axios from 'axios';
 import { API_URL } from '../constants/apiurl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+console.log("🌍 API_URL used in this build:", API_URL);
+
 const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,

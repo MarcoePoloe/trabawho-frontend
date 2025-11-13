@@ -83,6 +83,7 @@ const JobSeekerDashboard = ({ navigation, route }) => {
       const user = res.data;
 
       setName(res.data.name);
+      // await AsyncStorage.setItem('user_id', res.data.id);
       setUserLat(user.latitude);
       setUserLon(user.longitude);
     } catch (error) {
