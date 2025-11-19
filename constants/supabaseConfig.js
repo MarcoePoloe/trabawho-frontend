@@ -2,4 +2,3 @@
 
 export const SUPABASE_URL = "https://cytadzwlktphcizvgpkk.supabase.co";
 export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5dGFkendsa3RwaGNpenZncGtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MTgwMDQsImV4cCI6MjA2MDQ5NDAwNH0.sp8aAUOB1KtWSZGZwfMCSr5tLt3X8aXWqdvRaJ7xzLQ";
-
