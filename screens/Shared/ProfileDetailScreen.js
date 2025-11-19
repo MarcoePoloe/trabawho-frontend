@@ -12,15 +12,15 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { getRequest } from '../../services/api';
-import { MaterialIcons } from '@expo/vector-icons';
-
+import { getRequest, postRequest } from '../../services/api';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 
 export default function ProfileDetailScreen({ route, navigation }) {
   const { user_id } = route.params;
   const [profile, setProfile] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [startingThread, setStartingThread] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!user_id) return Alert.alert('Error', 'User ID not provided');
@@ -51,7 +51,8 @@ export default function ProfileDetailScreen({ route, navigation }) {
 
   // Fallback values
   const name = profile.name || profile.company_name || 'Unnamed User';
-  const role = profile.role === 'job_seeker' ? 'Job Seeker' : 'Employer';
+  const role = profile.role === 'job_seeker' ? 'job_seeker' : 'employer'; // role for API
+  const prettyRole = profile.role === 'job_seeker' ? 'Job Seeker' : 'Employer';
   const bio = profile.bio || 'No bio yet.';
   const photo = profile.photo_url || 'https://via.placeholder.com/150';
   const birthdate = profile.birthdate || 'Not specified';
@@ -59,13 +60,52 @@ export default function ProfileDetailScreen({ route, navigation }) {
   const contactInfo = profile.contact_info || 'Not specified';
   const contactEmail = profile.contact_email || 'Not specified';
 
+  // -----------------------------------------------------
+  // 🚀 START A THREAD AND NAVIGATE TO CHAT
+  // -----------------------------------------------------
+  const handleSendMessage = async () => {
+    if (!user_id) return Alert.alert('Error', 'No user selected.');
+
+    setStartingThread(true);
+    try {
+      const payload = {
+        recipient_id: user_id,
+        recipient_role: role,
+      };
+
+      const res = await postRequest('/chat/start', payload);
+      const data = res?.data;
+
+      if (!data?.thread_id) {
+        Alert.alert('Error', 'Unable to start chat.');
+        return;
+      }
+
+      // Navigate to chat screen
+      navigation.navigate('ChatConversation', {
+        thread_id: data.thread_id,
+        other_user_id: user_id,
+        other_name: name,
+        other_role: role,
+        other_photo: photo,
+      });
+
+    } catch (err) {
+      console.log('❌ Error starting thread:', err);
+      Alert.alert('Error', 'Failed to start conversation.');
+    } finally {
+      setStartingThread(false);
+    }
+  };
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchProfile} />}
     >
       <View style={styles.card}>
-        {/* Profile Header Section - Keeping the horizontal layout */}
+
+        {/* Profile Header Section */}
         <View style={styles.headerSection}>
           <TouchableOpacity onPress={() => setShowImageModal(true)}>
             <Image source={{ uri: photo }} style={styles.profilePhoto} />
@@ -73,7 +113,26 @@ export default function ProfileDetailScreen({ route, navigation }) {
 
           <View style={styles.profileTextContainer}>
             <Text style={styles.name}>{name}</Text>
-            <Text style={styles.role}>{role}</Text>
+            <Text style={styles.role}>{prettyRole}</Text>
+
+            {/* ----------------------------------------------------
+                SEND MESSAGE BUTTON
+            ---------------------------------------------------- */}
+            <TouchableOpacity
+              style={styles.messageButton}
+              onPress={handleSendMessage}
+              disabled={startingThread}
+            >
+              {startingThread ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+              )}
+
+              <Text style={styles.messageButtonText}>
+                {startingThread ? 'Opening...' : 'Send Message'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -82,6 +141,8 @@ export default function ProfileDetailScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>Bio</Text>
           <Text style={styles.bio}>{bio}</Text>
         </View>
+        
+
 
         {/* Profile Information Section */}
         <View style={styles.section}>
@@ -160,7 +221,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 2,
-    borderColor: '#4A6FA5',
+    borderColor: '#5271ff',
   },
   profileTextContainer: { 
     marginLeft: 20, 
@@ -175,9 +236,32 @@ const styles = StyleSheet.create({
   },
   role: { 
     fontSize: 16, 
-    color: '#4A6FA5',
+    // color: '#4A6FA5',
+    color: '#5271ff',
+    
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+
+  /* ✨ NEW BUTTON STYLES */
+  messageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#5271ff',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginTop: 10,
+    width: '70%',
+    justifyContent: 'center',
+  },
+  messageButtonText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 15,
     fontWeight: '600',
   },
+
   section: {
     marginBottom: 25,
   },
@@ -201,7 +285,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4A6FA5',
+    color: '#5271ff',
     marginBottom: 4,
   },
   infoText: {

@@ -159,6 +159,18 @@ export async function putWithAuth(endpoint, data, token, useFormData = false) {
   return api.put(endpoint, data, { headers });
 }
 
+export async function postMultipart(endpoint, formData) {
+  const token = await AsyncStorage.getItem("token");
+
+  const headers = {
+    "Accept": "application/json",
+    "Content-Type": "multipart/form-data",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+
+  return api.post(endpoint, formData, { headers });
+}
+
 
 
 export default api;

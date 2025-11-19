@@ -28,9 +28,9 @@ export default function NotificationBell({ navigation }) {
     }
   };
 
-  useEffect(() => {
-    if (isFocused) fetchUnread(); // refresh when focused
-  }, [isFocused]);
+  // useEffect(() => {
+  //   if (isFocused) fetchUnread(); // refresh when focused
+  // }, [isFocused]);
 
   // Optional: auto-refresh every 30s
   useEffect(() => {

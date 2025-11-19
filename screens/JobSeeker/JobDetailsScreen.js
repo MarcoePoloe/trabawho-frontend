@@ -9,11 +9,15 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
-import { getRequest, postRequest } from '../../services/api';
+import { getRequest, postRequest, postMultipart } from '../../services/api';
+import api from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import MapView, { Marker } from 'react-native-maps';
 import { Linking, Platform } from 'react-native';
+import * as DocumentPicker from "expo-document-picker";
+import { Modal } from "react-native";
+
 
 const JobDetailsScreen = ({ navigation, route }) => {
   const { job } = route.params || {};
@@ -24,6 +28,10 @@ const JobDetailsScreen = ({ navigation, route }) => {
   const [applicationId, setApplicationId] = useState(null);
   const isFocused = useIsFocused();
   const [submitting, setSubmitting] = useState(false);
+  const [showQuickApplyModal, setShowQuickApplyModal] = useState(false);
+  const [coverLetter, setCoverLetter] = useState(null);
+  const [quickApplying, setQuickApplying] = useState(false);
+
 
   const fetchApplicationStatus = async () => {
     try {
@@ -54,38 +62,94 @@ const JobDetailsScreen = ({ navigation, route }) => {
     }
   };
 
- const handleQuickApply = async () => {
-  try {
-    setSubmitting(true);
-    console.log("🚀 Sending POST to:", `/applications/quick-apply/${job.job_id}`);
+  const handleQuickApply = async () => {
+    setQuickApplying(true);
 
-    const response = await postRequest(`/applications/quick-apply/${job.job_id}`);
-    console.log("✅ Quick Apply Response:", response);
+    try {
+      const formData = new FormData();
+      const token = await AsyncStorage.getItem('token');
+      formData.append("job_id", job.job_id);
 
-    const data = response?.data || response;
+      if (coverLetter) {
+        formData.append("cover_letter", {
+          uri: coverLetter.uri,
+          name: coverLetter.name || "cover_letter.pdf",
+          type: "application/pdf",
+        });
+      }
 
-    if (data?.application_id) {
-      Alert.alert("Success", "Application submitted successfully!");
+      const response = await postMultipart("/apply/quick", formData);
+      // const response = await api.post('/apply-with-files', formData, {
+      //   headers: {
+      //     'Content-Type': 'multipart/form-data',
+      //     Authorization: `Bearer ${token}`,
+      //   },
+      // });
 
-      // 🧭 Pass the same fields ApplicationDetailsScreen expects
-      navigation.navigate("ApplicationDetails", {
-        application_id: data.application_id,
-        status: data.status, // <── fixes the undefined status crash
-        job_id: job.job_id,
-      });
-    } else {
-      Alert.alert("Notice", data?.message || "Application submitted.");
+      const data = response?.data || response;
+
+      if (data?.application_id) {
+        Alert.alert("Success", "Application submitted successfully!");
+
+        setShowQuickApplyModal(false);
+
+        // navigation.navigate("ApplicationDetails", {
+          
+        //   application_id: data.application_id,
+        //   job_id: job.job_id,
+        //   status: 'Submitted',
+        //   job: {
+        //     title: job.title,
+        //     company: job.company,
+        //     location: job.location
+        //   }
+        // });
+
+        navigation.navigate("ApplicationDetails", {
+          application: {
+            application_id: data.application_id,
+            job_id: job.job_id,
+            status: 'Submitted',
+            job: {
+              title: job.title,
+              company: job.company,
+              location: job.location
+            }
+          }
+        });
+
+      } else {
+        Alert.alert("Notice", data?.message || "Application submitted.");
+      }
+    } catch (err) {
+      console.log("❌ Quick apply failed response:", err.response?.data);
+      Alert.alert(
+        "Error",
+        err?.response?.data?.detail || err.message || "Quick apply failed."
+      );
+    } finally {
+      setQuickApplying(false);
     }
-  } catch (err) {
-    console.error("❌ Quick apply failed:", err);
-    Alert.alert(
-      "Error",
-      err?.response?.data?.detail || err.message || "Quick apply failed."
-    );
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
+
+
+  const pickCoverLetter = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "application/pdf",
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled) return;
+
+      setCoverLetter(result.assets[0]); // { uri, name, size, mimeType }
+    } catch (err) {
+      console.log("⚠️ Cover letter pick error:", err);
+      Alert.alert("Error", "Could not select a file.");
+    }
+  };
+
 
   // NEW: Updated justify match function with all required parameters
   const handleJustifyMatch = async () => {
@@ -436,26 +500,21 @@ const JobDetailsScreen = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* {!hasApplied && (
-          <View style={{ marginTop: 12 }}>
+        
+        {!hasApplied && (
+          <>
             <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: "#2f9e44" }]}
-              onPress={handleQuickApply}
-              disabled={submitting}
+              style={[styles.applyButton, { backgroundColor: "#2f9e44", marginTop: 10 }]}
+              onPress={() => setShowQuickApplyModal(true)}
             >
-              {submitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.applyButtonText}>Quick Apply</Text>
-              )}
+              <Text style={styles.applyButtonText}>Quick Apply</Text>
             </TouchableOpacity>
 
-            <Text style={{ textAlign: "center", marginTop: 6, color: "#555" }}>
-              Applies instantly using your saved resume
-            </Text>
-          </View>
-        )} */}
-
+            {/* <Text style={{ textAlign: "center", marginTop: 6, color: "#555" }}>
+              Uses your saved resume + optional cover letter
+            </Text> */}
+          </>
+        )}
 
 
 
@@ -485,6 +544,49 @@ const JobDetailsScreen = ({ navigation, route }) => {
           )}
         </View>
       </View>
+
+
+
+      <Modal visible={showQuickApplyModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Quick Apply</Text>
+            <Text style={styles.modalSubtitle}>
+              Your saved resume will be used automatically.
+            </Text>
+
+            <View style={{ marginVertical: 15 }}>
+              <Text style={styles.modalLabel}>Optional Cover Letter (PDF)</Text>
+
+              <TouchableOpacity style={styles.filePickerBtn} onPress={pickCoverLetter}>
+                <Text style={styles.filePickerText}>
+                  {coverLetter ? coverLetter.name : "Select a PDF file"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitBtn, quickApplying && { opacity: 0.6 }]}
+              onPress={handleQuickApply}
+              disabled={quickApplying}
+            >
+              {quickApplying ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitBtnText}>Submit Application</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setShowQuickApplyModal(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+
+
+
     </ScrollView>
   );
 };
@@ -737,6 +839,61 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
     marginBottom: 25,
   },
+  modalOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.5)",
+  justifyContent: "center",
+  padding: 20,
+},
+modalCard: {
+  backgroundColor: "#fff",
+  borderRadius: 12,
+  padding: 20,
+},
+modalTitle: {
+  fontSize: 20,
+  fontWeight: "700",
+  marginBottom: 6,
+  color: "#333",
+},
+modalSubtitle: {
+  fontSize: 14,
+  color: "#666",
+  marginBottom: 20,
+},
+modalLabel: {
+  fontSize: 15,
+  fontWeight: "600",
+  marginBottom: 6,
+},
+filePickerBtn: {
+  padding: 12,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#ccc",
+},
+filePickerText: {
+  color: "#333",
+},
+submitBtn: {
+  backgroundColor: "#2f9e44",
+  padding: 14,
+  borderRadius: 8,
+  alignItems: "center",
+  marginTop: 10,
+},
+submitBtnText: {
+  color: "#fff",
+  fontWeight: "700",
+  fontSize: 16,
+},
+cancelText: {
+  textAlign: "center",
+  marginTop: 12,
+  color: "#d00",
+  fontWeight: "600",
+},
+
 });
 
 export default JobDetailsScreen;

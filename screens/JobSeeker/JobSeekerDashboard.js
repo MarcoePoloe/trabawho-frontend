@@ -1,3 +1,4 @@
+// screens/JobSeekerDashboard.js
 // ... keep all your existing imports
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -12,14 +13,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
-  Modal
+  Modal,
+  Image,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { getRequest } from '../../services/api';
 import { getToken } from '../../services/Auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
-
 
 const ITEMS_PER_PAGE = 5;
 
@@ -47,6 +48,13 @@ const JobSeekerDashboard = ({ navigation, route }) => {
 
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
+  // --- Employer Search state (new)
+  const [employerQuery, setEmployerQuery] = useState('');
+  const [employers, setEmployers] = useState([]);
+  const [employersPage, setEmployersPage] = useState(1);
+  const [loadingEmployers, setLoadingEmployers] = useState(false);
+  const [employersTotal, setEmployersTotal] = useState(null);
+
   useEffect(() => {
     const checkAuth = async () => {
       const token = await AsyncStorage.getItem('token');
@@ -68,8 +76,6 @@ const JobSeekerDashboard = ({ navigation, route }) => {
     fetchData();
     return unsubscribe;
   }, [navigation, route.params]);
-
-
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -161,13 +167,8 @@ const JobSeekerDashboard = ({ navigation, route }) => {
       }
       if (radiusKm) url += `&radius=${radiusKm}`;
 
-      console.log("➡️ Fetching jobs with URL:", url, "token present:", !!authToken);
-
       // pass authToken to getRequest if available
       const res = await getRequest(url, authToken);
-
-      // Defensive logging of the full response
-      // console.log("FULL JOB RESPONSE:", res?.data);
 
       // Accept either { jobs: [...] } or an array directly
       const jobs = res?.data?.jobs ?? res?.data ?? [];
@@ -176,7 +177,6 @@ const JobSeekerDashboard = ({ navigation, route }) => {
         setAllJobs([]);
       } else {
         setAllJobs(jobs);
-        console.log("JOB SAMPLE:", jobs[0]);
       }
 
       setJobsPage(1);
@@ -206,7 +206,6 @@ const JobSeekerDashboard = ({ navigation, route }) => {
         console.log("⚠️ Skipping AI matches — no valid location found yet.");
       }
 
-
       // finally fetch jobs using coords + auth token
       await fetchAllJobs(lat, lon, t);
     } catch (err) {
@@ -214,35 +213,84 @@ const JobSeekerDashboard = ({ navigation, route }) => {
     }
   };
 
-
-
   const fetchMatches = async (authToken, lat = null, lon = null) => {
-  setLoadingMatches(true);
-  try {
-    let url = '/match-jobs';
+    setLoadingMatches(true);
+    try {
+      let url = '/match-jobs';
 
-    // ✅ always use latest coords, not possibly stale state
-    const useLat = lat ?? userLat;
-    const useLon = lon ?? userLon;
+      // ✅ always use latest coords, not possibly stale state
+      const useLat = lat ?? userLat;
+      const useLon = lon ?? userLon;
 
-    if (useLat && useLon) {
-      url += `?lat=${useLat}&lon=${useLon}`;
-    } else {
-      console.log("⚠️ No coords available for AI matches");
+      if (useLat && useLon) {
+        url += `?lat=${useLat}&lon=${useLon}`;
+      } else {
+        console.log("⚠️ No coords available for AI matches");
+      }
+
+      const res = await getRequest(url, authToken);
+      setMatches(res.data || []);
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+    } finally {
+      setLoadingMatches(false);
     }
+  };
 
-    const res = await getRequest(url, authToken);
-    setMatches(res.data || []);
+  // --- Employer search function (NEW)
+  const fetchEmployers = async (query = null) => {
+  const q = (query ?? employerQuery ?? '').trim();
 
-    console.log("✅ AI Matches fetched:", res.data?.[0]);
-  } catch (error) {
-    console.error('Error fetching matches:', error);
+  if (!q) {
+    setEmployers([]);
+    setEmployersTotal(0);
+    setEmployersPage(1);
+    return;
+  }
+
+  setLoadingEmployers(true);
+
+  try {
+    const url = `/search/users?q=${encodeURIComponent(q)}`;
+    const res = await getRequest(url);
+
+    // console.log("🔍 SEARCH RAW:", res?.data);
+
+    // The backend returns: { searching, count, results }
+    const results = Array.isArray(res?.data?.results)
+      ? res.data.results
+      : [];
+
+    // console.log("📌 Parsed Results:", results);
+
+    setEmployers(results);
+    setEmployersTotal(results.length);
+    setEmployersPage(1);
+
+  } catch (err) {
+    console.error("Error fetching employers:", err);
+    Alert.alert("Error", "Failed to search employers.");
   } finally {
-    setLoadingMatches(false);
+    setLoadingEmployers(false);
   }
 };
 
 
+  const paginatedEmployers = employers.slice(
+    (employersPage - 1) * ITEMS_PER_PAGE,
+    employersPage * ITEMS_PER_PAGE
+  );
+
+
+  // Handler when user taps an employer row
+  const handleEmployerPress = (item) => {
+    const userId = item.user_id ?? item.id ?? item.employer_id;
+    if (!userId) {
+      Alert.alert('Error', 'Selected employer has no ID');
+      return;
+    }
+    navigation.navigate('ProfileDetail', { user_id: userId });
+  };
 
   const topMatches = matches.slice(0, 3);
   const handleSearch = () => fetchAllJobs();
@@ -335,7 +383,7 @@ const JobSeekerDashboard = ({ navigation, route }) => {
               {topMatches.map((job) => (
                 <TouchableOpacity
                   key={job.job_id}
-                  onPress={() => navigation.navigate('JobDetails', { job})}
+                  onPress={() => navigation.navigate('JobDetails', { job })}
                   style={styles.item}
                 >
                   <Text style={styles.jobTitle}>{job.title}</Text>
@@ -353,6 +401,86 @@ const JobSeekerDashboard = ({ navigation, route }) => {
                   </View>
                 </TouchableOpacity>
               ))}
+            </>
+          )}
+        </View>
+
+        {/* --- Employer Search Section (NEW) --- */}
+        <View style={styles.card}>
+          <View style={styles.titleRow}>
+            <Text style={styles.cardTitle}>Search Employers</Text>
+            <Text style={{ fontSize: 12, color: '#666' }}>Prototype — search by name</Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <TextInput
+              style={[styles.searchInput, { flex: 1 }]}
+              placeholder="Type employer name..."
+              value={employerQuery}
+              onChangeText={setEmployerQuery}
+              onSubmitEditing={() => fetchEmployers( employerQuery)}
+            />
+            <TouchableOpacity
+              style={[styles.searchButton, { marginLeft: 8 }]}
+              onPress={() => fetchEmployers(employerQuery)}
+            >
+              <Text style={styles.searchButtonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loadingEmployers ? (
+            <ActivityIndicator size="small" color="#5271ff" style={styles.loader} />
+          ) : employers.length === 0 ? (
+            <Text style={styles.emptyText}>No employers found (try different keywords)</Text>
+          ) : (
+            <>
+              {paginatedEmployers.map((item) => (
+                <TouchableOpacity
+                  key={item.user_id}
+                  onPress={() => handleEmployerPress(item)}
+                  style={styles.employerRow}
+                >
+                  <Image
+                    source={{ uri: item.photo }}
+                    style={styles.employerAvatar}
+                  />
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#333' }}>
+                      {item.name ?? 'Unnamed'}
+                    </Text>
+                    {item.location ? (
+                      <Text style={{ color: '#666', fontSize: 13 }}>
+                        {item.location}
+                      </Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+
+              {/* Pagination controls for employers */}
+              <View style={styles.pagination}>
+                <TouchableOpacity
+                  style={styles.paginationButton}
+                  disabled={employersPage <= 1}
+                  onPress={() => setEmployersPage(employersPage - 1)}
+                >
+                  <Text style={styles.paginationButtonText}>Previous</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.pageText}>
+                  Page {employersPage} • {employersTotal} results
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.paginationButton}
+                  disabled={employersPage * ITEMS_PER_PAGE >= employersTotal}
+                  onPress={() => setEmployersPage(employersPage + 1)}
+                >
+                  <Text style={styles.paginationButtonText}>Next</Text>
+                </TouchableOpacity>
+              </View>
+
             </>
           )}
         </View>
@@ -405,8 +533,6 @@ const JobSeekerDashboard = ({ navigation, route }) => {
                 onSubmitEditing={handleSearch}
               />
             </View>
-
-            
           </View>
 
           {/* Radius Filter */}
@@ -429,7 +555,6 @@ const JobSeekerDashboard = ({ navigation, route }) => {
               Drag to change search radius
             </Text>
           </View>
-
 
           {/* Sort Filter */}
           <View style={styles.sortRow}>
@@ -461,7 +586,7 @@ const JobSeekerDashboard = ({ navigation, route }) => {
                     >
                       <Text style={styles.jobTitle}>{item.title}</Text>
                       <Text style={styles.company}>{item.company}</Text>
-                      
+
                       <Text style={styles.location}>
                         {item.location}
                         {item.distance_km != null && (
@@ -469,7 +594,6 @@ const JobSeekerDashboard = ({ navigation, route }) => {
                         )}
                       </Text>
                       {item.position && <Text style={styles.position}>{item.position}</Text>}
-                      
                     </TouchableOpacity>
                   ))}
                 </>
@@ -483,7 +607,6 @@ const JobSeekerDashboard = ({ navigation, route }) => {
     </KeyboardAvoidingView>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -691,21 +814,36 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   pagination: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginTop: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 15,
   },
   paginationButton: {
-  padding: 8,
+    padding: 8,
   },
   paginationButtonText: {
-  color: '#5271ff',
-  fontSize: 14,
+    color: '#5271ff',
+    fontSize: 14,
   },
   pageText: {
-  color: '#666',
-  fontSize: 14,
+    color: '#666',
+    fontSize: 14,
+  },
+
+  // --- employer result styles
+  employerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  employerAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#eee',
   },
 });
 

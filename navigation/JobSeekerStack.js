@@ -1,6 +1,6 @@
 // navigation/JobSeekerStack.js
 import React from "react";
-import { Image } from "react-native"; // Add Image import
+import { Image, View, Text } from "react-native"; // Add Image import
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +14,13 @@ import ApplicationDetailsScreen from "../screens/JobSeeker/ApplicationDetailsScr
 import JobSeekerProfileScreen from "../screens/JobSeeker/JobSeekerProfileScreen";
 import AllAIMatchesScreen from "../screens/JobSeeker/AllAIMatchesScreen";
 
+import AllChatsScreen from "../screens/Chat/AllChatsScreen";
+import ChatConversationScreen from "../screens/Chat/ChatConversationScreen";
+import { useContext } from "react";
+import { ChatContext } from "../context/ChatContext";
+import { useChat } from "../context/ChatContext";
+
+
 import InterviewDetailScreen from '../screens/Shared/InterviewDetailScreen';
 
 import NotificationsScreen from "../screens/Shared/NotificationsScreen";
@@ -24,6 +31,16 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 /* ---------- Nested stacks used as tab components (only the "home" list screens live here) ---------- */
+console.log("JobDetailsScreen =", JobDetailsScreen);
+console.log("ApplicationFormScreen =", ApplicationFormScreen);
+console.log("ApplicationDetailsScreen =", ApplicationDetailsScreen);
+console.log("AllAIMatchesScreen =", AllAIMatchesScreen);
+console.log("NotificationsScreen =", NotificationsScreen);
+console.log("ProfileDetailScreen =", ProfileDetailScreen);
+console.log("SettingsScreen =", SettingsScreen);
+console.log("InterviewDetailScreen =", InterviewDetailScreen);
+console.log("AllChatsScreen =", AllChatsScreen);
+console.log("ChatConversationScreen =", ChatConversationScreen)
 
 function JobsStack() {
   return (
@@ -43,6 +60,16 @@ function ApplicationsStack() {
   );
 }
 
+function ChatStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {/* root list for Messages tab */}
+      <Stack.Screen name="ChatHome" component={AllChatsScreen} />
+    </Stack.Navigator>
+  );
+}
+
+
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -54,6 +81,8 @@ function ProfileStack() {
 /* ---------- Tab Navigator (Jobs / Applications / Profile) ---------- */
 
 function JobSeekerTabs() {
+  const { unreadCount } = useChat();
+ 
   return (
     <Tab.Navigator
       screenOptions={({ route, navigation }) => ({
@@ -70,15 +99,45 @@ function JobSeekerTabs() {
         // tab bar icons
         tabBarIcon: ({ color, size }) => {
           let iconName = "help-circle-outline";
+
           if (route.name === "Jobs") iconName = "briefcase-outline";
           else if (route.name === "Applications") iconName = "document-text-outline";
           else if (route.name === "Profile") iconName = "person-outline";
-          return <Ionicons name={iconName} size={size} color={color} />;
+          else if (route.name === "Messages") iconName = "chatbubble-ellipses-outline";
+
+          return (
+            <View style={{ width: 28, height: 28 }}>
+              <Ionicons name={iconName} size={size} color={color} />
+
+              {/* 🔴 UNREAD BADGE */}
+              {route.name === "Messages" && unreadCount > 0 && (
+                <View
+                  style={{  
+                    position: "absolute",
+                    top: -4,
+                    right: -10,
+                    backgroundColor: "red",
+                    minWidth: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    paddingHorizontal: 3,
+                  }}
+                  >
+                  <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          );
         },
       })}
     >
       <Tab.Screen name="Jobs" component={JobsStack} options={{ title: "Jobs" }} />
       <Tab.Screen name="Applications" component={ApplicationsStack} options={{ title: "Applications" }} />
+      <Tab.Screen name="Messages" component={ChatStack} options={{ title: "Messages" }}/>
       <Tab.Screen name="Profile" component={ProfileStack} options={{ title: "Profile" }} />
     </Tab.Navigator>
   );
@@ -101,11 +160,10 @@ export default function JobSeekerStack() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
       <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} options={{ headerShown: true, title: 'User Profile' }}/>
       <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ headerShown: true, title: 'Profile Settings' }}/>
-      <Stack.Screen
-        name="InterviewDetail"
-        component={InterviewDetailScreen}
-        options={{ headerShown: true, title: 'Interview Details' }}
-      />
+      <Stack.Screen name="InterviewDetail" component={InterviewDetailScreen} options={{ headerShown: true, title: 'Interview Details' }}/>
+
+      <Stack.Screen name="ChatConversation" component={ChatConversationScreen} options={{ headerShown: false }}/>
+
 
     </Stack.Navigator>
   );

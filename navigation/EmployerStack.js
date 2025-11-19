@@ -1,16 +1,19 @@
 // navigation/EmployerStack.js
 import React from 'react';
-import { TouchableOpacity, Image } from 'react-native'; // Add Image import
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { Image, View, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
+// Chat screens
+import AllChatsScreen from "../screens/Chat/AllChatsScreen";
+import ChatConversationScreen from "../screens/Chat/ChatConversationScreen";
+import { useChat } from "../context/ChatContext";
 
 // Tabs
-import EmployerDashboard from '../screens/Employer/EmployerDashboard'; // repurposed dashboard jobs section
+import EmployerDashboard from '../screens/Employer/EmployerDashboard';
 import ApplicantTabScreen from '../screens/Employer/ApplicantTabScreen';
-import EmployerProfileScreen from '../screens/Employer/EmployerProfileScreen'; // placeholder with logout
+import EmployerProfileScreen from '../screens/Employer/EmployerProfileScreen';
 
 // Detail Screens
 import JobApplicantList from '../screens/Employer/JobApplicantListScreen';
@@ -23,69 +26,95 @@ import PostedJobDetail from '../screens/Employer/PostedJobDetailScreen';
 import NotificationsScreen from '../screens/Shared/NotificationsScreen';
 import ProfileDetailScreen from '../screens/Shared/ProfileDetailScreen';
 import SettingsScreen from '../screens/Shared/SettingsScreen';
-import NotificationBell from "../components/NotificationBell"; 
+import NotificationBell from "../components/NotificationBell";
 import InterviewDetailScreen from '../screens/Shared/InterviewDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+/* -----------------------------------------------------------
+   Chat Stack (same pattern as JobSeeker's)
+----------------------------------------------------------- */
+function ChatStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ChatHome" component={AllChatsScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function EmployerTabs() {
+  const { unreadCount } = useChat();
+
   return (
     <Tab.Navigator
       screenOptions={({ route, navigation }) => ({
         headerShown: true,
         headerTitle: () => (
-          <Image 
-            source={require('../assets/Rectangle-logo-white.png')} // Adjust path as needed
+          <Image
+            source={require('../assets/Rectangle-logo-white.png')}
             style={styles.logo}
             resizeMode="contain"
           />
         ),
-        headerRight: () => (
-          <NotificationBell navigation={navigation} />
-        ),
+        headerRight: () => <NotificationBell navigation={navigation} />,
+
         tabBarIcon: ({ color, size }) => {
           let iconName;
-          if (route.name === 'Jobs') {
-            iconName = 'briefcase-outline';
-          } else if (route.name === 'Applicants') {
-            iconName = 'people-outline';
-          } else if (route.name === 'Profile') {
-            iconName = 'person-circle-outline';
-          }
-          return <Ionicons name={iconName} size={size} color={color} />;
+
+          if (route.name === 'Jobs') iconName = 'briefcase-outline';
+          else if (route.name === 'Applicants') iconName = 'people-outline';
+          else if (route.name === 'Messages') iconName = 'chatbubble-ellipses-outline';
+          else if (route.name === 'Profile') iconName = 'person-circle-outline';
+
+          return (
+            <View style={{ width: 28, height: 28 }}>
+              <Ionicons name={iconName} size={size} color={color} />
+
+              {/* 🔴 Unread Badge */}
+              {route.name === "Messages" && unreadCount > 0 && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -10,
+                    backgroundColor: "red",
+                    minWidth: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    paddingHorizontal: 3,
+                  }}
+                >
+                  <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          );
         },
       })}
     >
-      <Tab.Screen 
-        name="Jobs" 
-        component={EmployerDashboard} 
-        options={{ title: 'Jobs' }} 
-      />
-      <Tab.Screen 
-        name="Applicants" 
-        component={ApplicantTabScreen} 
-        options={{ title: 'Applicants' }} 
-      />
-      <Tab.Screen 
-        name="Profile" 
-        component={EmployerProfileScreen} 
-        options={{ title: 'Profile' }} 
-      />
+      <Tab.Screen name="Jobs" component={EmployerDashboard} />
+      <Tab.Screen name="Applicants" component={ApplicantTabScreen} />
+
+      {/* ⭐ NEW MESSAGES TAB ⭐ */}
+      <Tab.Screen name="Messages" component={ChatStack} />
+
+      <Tab.Screen name="Profile" component={EmployerProfileScreen} />
     </Tab.Navigator>
   );
 }
 
-
-
-
-
-
-
+/* -----------------------------------------------------------
+   Root stack (same pattern as JobSeeker)
+----------------------------------------------------------- */
 export default function EmployerStack() {
   return (
     <Stack.Navigator>
-      {/* Main Tabs */}
+      {/* Tabs */}
       <Stack.Screen
         name="EmployerTabs"
         component={EmployerTabs}
@@ -93,29 +122,31 @@ export default function EmployerStack() {
       />
 
       {/* Detail Screens */}
-      <Stack.Screen name="JobApplicantList" component={JobApplicantList} options={{ headerShown: true, title: 'Job Applicant List' }}/>
-      <Stack.Screen name="ApplicantDetail" component={ApplicantDetail} options={{ headerShown: true, title: 'Applicant Detail' }} />
-      <Stack.Screen name="JobCreationForm" component={JobCreationForm} options={{ headerShown: true, title: 'Job Creation Form' }} />
-      <Stack.Screen name="JobEdit" component={JobEdit} options={{ headerShown: true, title: 'Edit Job Details' }} />
-      <Stack.Screen name="PostedJobDetail" component={PostedJobDetail} options={{ headerShown: true, title: 'Posted Job Detail' }} />
+      <Stack.Screen name="JobApplicantList" component={JobApplicantList} options={{ title: 'Job Applicant List' }} />
+      <Stack.Screen name="ApplicantDetail" component={ApplicantDetail} options={{ title: 'Applicant Detail' }} />
+      <Stack.Screen name="JobCreationForm" component={JobCreationForm} options={{ title: 'Job Creation Form' }} />
+      <Stack.Screen name="JobEdit" component={JobEdit} options={{ title: 'Edit Job Details' }} />
+      <Stack.Screen name="PostedJobDetail" component={PostedJobDetail} options={{ title: 'Posted Job Detail' }} />
 
       {/* Shared */}
-      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: 'Notifications Screen' }} />
-      <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} options={{ headerShown: true, title: 'User Profile' }}/>
-      <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ headerShown: true, title: 'Profile Settings' }}/>
-      <Stack.Screen
-        name="InterviewDetail"
-        component={InterviewDetailScreen}
-        options={{ headerShown: true, title: 'Interview Details' }}
-      />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} />
+      <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+      <Stack.Screen name="InterviewDetail" component={InterviewDetailScreen} />
 
+      {/* ⭐ Chat conversation screen ⭐ */}
+      <Stack.Screen
+        name="ChatConversation"
+        component={ChatConversationScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
 
 const styles = {
   logo: {
-    width: 160, // Adjust size as needed
-    height: 90, // Adjust size as needed
+    width: 160,
+    height: 90,
   },
 };

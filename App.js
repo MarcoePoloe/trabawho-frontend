@@ -5,20 +5,21 @@ import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppNavigator from './navigation/AppNavigator';
 import { enableScreens } from 'react-native-screens';
+import { ChatProvider } from "./context/ChatContext";
 import { StyleSheet } from 'react-native';
 enableScreens(true);
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+
       <NavigationContainer>
-        <AppNavigator />
+        <ChatProvider>
+          <AppNavigator />
+        </ChatProvider>
       </NavigationContainer>
-
       <Toast>
-        
       </Toast>
-
     </GestureHandlerRootView>
 
 

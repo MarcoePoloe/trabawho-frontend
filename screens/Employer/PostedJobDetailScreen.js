@@ -70,7 +70,10 @@ const PostedJobDetailScreen = ({ navigation, route }) => {
             try {
               setIsDeleting(true);
               await deleteRequest(`/jobs/${job_id}`);
-              navigation.navigate('EmployerDashboard');
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "EmployerStack" }],
+              });
             } catch (error) {
               Alert.alert('Error', 'Failed to delete job post');
             } finally {
