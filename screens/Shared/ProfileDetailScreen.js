@@ -59,6 +59,10 @@ export default function ProfileDetailScreen({ route, navigation }) {
   const location = profile.location || 'Not specified';
   const contactInfo = profile.contact_info || 'Not specified';
   const contactEmail = profile.contact_email || 'Not specified';
+  // Job Seeker–specific fields
+  const skills = Array.isArray(profile.skills) ? profile.skills : [];
+  const yearsOfExperience = profile.years_of_experience ?? null;
+
 
   // -----------------------------------------------------
   // 🚀 START A THREAD AND NAVIGATE TO CHAT
@@ -141,29 +145,62 @@ export default function ProfileDetailScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>Bio</Text>
           <Text style={styles.bio}>{bio}</Text>
         </View>
-        
+
+        {/* ==========================================================
+                JOB SEEKER–ONLY SECTION: Skills + Experience
+            ========================================================== */}
+        {role === 'job_seeker' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Job Seeker Details</Text>
+
+            {/* Years of Experience */}
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Years of Experience</Text>
+              <Text style={styles.infoText}>
+                {yearsOfExperience !== null ? `${yearsOfExperience} year(s)` : 'Not specified'}
+              </Text>
+            </View>
+
+            {/* Skills / Specialities */}
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.infoLabel}>Specialities</Text>
+
+              {skills.length === 0 ? (
+                <Text style={styles.infoText}>No skills found (upload a resume to update)</Text>
+              ) : (
+                <View style={styles.skillContainer}>
+                  {skills.map((skill, index) => (
+                    <View key={index} style={styles.skillBadge}>
+                      <Text style={styles.skillText}>{skill}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
 
         {/* Profile Information Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Information</Text>
-          
+
           <View style={styles.infoGrid}>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Date of Birth</Text>
               <Text style={styles.infoText}>{birthdate}</Text>
             </View>
-            
+
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Address</Text>
               <Text style={styles.infoText}>{location}</Text>
             </View>
-            
+
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Contact Info</Text>
               <Text style={styles.infoText}>{contactInfo}</Text>
             </View>
-            
+
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Email Address</Text>
               <Text style={styles.infoText}>{contactEmail}</Text>
@@ -223,22 +260,22 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#5271ff',
   },
-  profileTextContainer: { 
-    marginLeft: 20, 
+  profileTextContainer: {
+    marginLeft: 20,
     flex: 1,
-    flexShrink: 1 
+    flexShrink: 1
   },
-  name: { 
-    fontSize: 22, 
-    fontWeight: 'bold', 
+  name: {
+    fontSize: 22,
+    fontWeight: 'bold',
     color: '#333',
     marginBottom: 4,
   },
-  role: { 
-    fontSize: 16, 
+  role: {
+    fontSize: 16,
     // color: '#4A6FA5',
     color: '#5271ff',
-    
+
     fontWeight: '600',
     marginBottom: 10,
   },
@@ -308,4 +345,25 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     borderRadius: 10,
   },
+  skillContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+
+  skillBadge: {
+    backgroundColor: '#5271ff20',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#5271ff60',
+  },
+
+  skillText: {
+    color: '#5271ff',
+    fontWeight: '600',
+  },
+
 });

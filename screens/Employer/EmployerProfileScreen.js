@@ -20,6 +20,11 @@ import Toast from 'react-native-toast-message';
 import { getRequest, putWithAuth } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 
+// NEW imports to mirror JobSeeker geolocation logic
+import LocationPicker from '../../components/LocationPicker';
+import MapView, { Marker } from 'react-native-maps';
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 
 export default function EmployerProfileScreen() {
   const [profile, setProfile] = useState(null);
@@ -31,6 +36,13 @@ export default function EmployerProfileScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const navigation = useNavigation();
+
+  // NEW: locationData state mirrors JobSeeker screen
+  const [locationData, setLocationData] = useState({
+    latitude: null,
+    longitude: null,
+    geocoded_address: '',
+  });
 
   // fetch profile info
   const fetchProfileData = useCallback(async () => {
@@ -44,11 +56,19 @@ export default function EmployerProfileScreen() {
         meRes?.data?.id;
 
       const profileRes = await getRequest('/GetProfileInfo/me');
-      setProfile(profileRes.data || {});
-      setEditData(profileRes.data || {});
+      const pdata = profileRes.data || {};
+      setProfile(pdata);
+      setEditData(pdata);
+
+      // populate locationData from profile (mirror JobSeeker behaviour)
+      setLocationData({
+        latitude: pdata.latitude ?? null,
+        longitude: pdata.longitude ?? null,
+        geocoded_address: pdata.geocoded_address ?? '',
+      });
     } catch (err) {
       console.error('❌ Error fetching profile data:', err);
-      Toast.show({ type: 'error', text1: 'Failed to load profile' });
+      Toast.show({ type: 'error', text1: 'Failed to load profile', visibilityTime: 4000, });
     } finally {
       setRefreshing(false);
     }
@@ -79,13 +99,12 @@ export default function EmployerProfileScreen() {
 
       const token = await AsyncStorage.getItem('token');
       await putWithAuth('/PutProfileInfo/Photo', formData, token, true);
-      Toast.show({ type: 'success', text1: 'Profile photo updated!' });
+      Toast.show({ type: 'success', text1: 'Profile photo updated!', visibilityTime: 4000, });
       await fetchProfileData();
     } catch (err) {
-  console.log('❌ Photo upload failed:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-  Toast.show({ type: 'error', text1: 'Photo upload failed' });
-}
-finally {
+      console.log('❌ Photo upload failed:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+      Toast.show({ type: 'error', text1: 'Photo upload failed', visibilityTime: 4000, });
+    } finally {
       setUploadingPhoto(false);
     }
   };
@@ -95,7 +114,7 @@ finally {
     try {
       setBusy(true);
       const token = await AsyncStorage.getItem('token');
-      if (!token) return Toast.show({ type: 'error', text1: 'Not authenticated' });
+      if (!token) return Toast.show({ type: 'error', text1: 'Not authenticated', visibilityTime: 4000, });
 
       const fd = new FormData();
       const maybeAppend = (key, value) => {
@@ -113,13 +132,18 @@ finally {
       maybeAppend('contact_info', editData.contact_info);
       maybeAppend('contact_email', editData.contact_email);
 
+      // NEW: append geolocation fields from locationData (mirrors JobSeeker)
+      maybeAppend('latitude', locationData.latitude);
+      maybeAppend('longitude', locationData.longitude);
+      maybeAppend('geocoded_address', locationData.geocoded_address);
+
       await putWithAuth('/PutProfileInfo', fd, token, true);
-      Toast.show({ type: 'success', text1: 'Profile updated successfully!' });
+      Toast.show({ type: 'success', text1: 'Profile updated successfully!', visibilityTime: 4000, });
       setEditing(false);
       await fetchProfileData();
     } catch (err) {
       console.error('❌ Save failed:', err);
-      Toast.show({ type: 'error', text1: 'Failed to save profile info' });
+      Toast.show({ type: 'error', text1: 'Failed to save profile info' , visibilityTime: 4000,});
     } finally {
       setBusy(false);
     }
@@ -153,74 +177,132 @@ finally {
           <MaterialIcons name="settings" size={26} color="#5271ff" />
         </TouchableOpacity>
 
-        
         {/* Profile Header Section */}
-<View style={styles.headerSection}>
-  <View style={styles.photoContainer}>
-    <TouchableOpacity onPress={() => setShowImageModal(true)}>
-      {uploadingPhoto ? (
-        <View style={styles.loadingPhotoContainer}>
-          <ActivityIndicator size="large" color="#5271ff" />
+        <View style={styles.headerSection}>
+          <View style={styles.photoContainer}>
+            <TouchableOpacity onPress={() => setShowImageModal(true)}>
+              {uploadingPhoto ? (
+                <View style={styles.loadingPhotoContainer}>
+                  <ActivityIndicator size="large" color="#5271ff" />
+                </View>
+              ) : (
+                <Image source={{ uri: profile.photo_url }} style={styles.profilePhoto} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.editIconContainer} onPress={handlePhotoChange}>
+              <MaterialIcons name="edit" size={20} color="#5271ff" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{profile.name || 'Unnamed'}</Text>
+          </View>
+
+          <Text style={styles.bio}>{profile.bio || 'No bio yet.'}</Text>
         </View>
-      ) : (
-        <Image source={{ uri: profile.photo_url }} style={styles.profilePhoto} />
-      )}
-    </TouchableOpacity>
-    <TouchableOpacity style={styles.editIconContainer} onPress={handlePhotoChange}>
-      <MaterialIcons name="edit" size={20} color="#5271ff" />
-    </TouchableOpacity>
-  </View>
 
-  <View style={styles.nameRow}>
-    <Text style={styles.name}>{profile.name || 'Unnamed'}</Text>
-  </View>
-  
-  
-
-  <Text style={styles.bio}>{profile.bio || 'No bio yet.'}</Text>
-</View>
         {/* Profile Information Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Information</Text>
-          
+
           <View style={styles.infoGrid}>
+            {/* Date of Birth */}
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Date of Birth</Text>
               <Text style={styles.infoText}>{profile.birthdate || 'Not specified'}</Text>
             </View>
-            
+
+            {/* Address */}
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Address</Text>
               <Text style={styles.infoText}>{profile.location || 'Not specified'}</Text>
             </View>
-            
+
+            {/* Map Location (mirrored from JobSeeker) */}
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Map Location</Text>
+              {profile.latitude && profile.longitude ? (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    const url = Platform.select({
+                      ios: `http://maps.apple.com/?ll=${profile.latitude},${profile.longitude}`,
+                      android: `https://www.google.com/maps/search/?api=1&query=${profile.latitude},${profile.longitude}`,
+                    });
+                    Linking.openURL(url);
+                  }}
+                >
+                  <Text style={{ color: '#444', fontSize: 12, marginBottom: 2 }}>Tap to view in Maps</Text>
+                  <MapView
+                    style={{
+                      height: 150,
+                      width: '100%',
+                      borderRadius: 10,
+                      marginTop: 0,
+                    }}
+                    initialRegion={{
+                      latitude: profile.latitude,
+                      longitude: profile.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                    rotateEnabled={false}
+                    pitchEnabled={false}
+                  >
+                    <Marker
+                      coordinate={{
+                        latitude: profile.latitude,
+                        longitude: profile.longitude,
+                      }}
+                    />
+                  </MapView>
+                  <Text style={[styles.infoText, { color: '#444', fontSize: 14, marginTop: 4 }]}>
+                    {profile.geocoded_address || profile.location || 'Not specified'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View
+                  style={{
+                    height: 150,
+                    width: '100%',
+                    backgroundColor: '#f0f0f0',
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#777' }}>📍 No location set</Text>
+                  <Text style={{ color: '#5271ff', fontSize: 12 }}>Edit profile to add location</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Contact Info */}
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Contact Info</Text>
               <Text style={styles.infoText}>{profile.contact_info || 'Not specified'}</Text>
             </View>
-            
+
+            {/* Contact Email */}
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Contact Email</Text>
               <Text style={styles.infoText}>{profile.contact_email || 'Not specified'}</Text>
             </View>
 
-            <TouchableOpacity style={styles.editProfileButton} onPress={() => setEditing(true)}>
-                <MaterialIcons name="edit" size={18} color="#fff" />
-                <Text style={styles.editProfileButtonText}>Edit Profile</Text>
-              </TouchableOpacity>
+            <TouchableOpacity style={styles.editProfileButton} onPress={() => { setEditing(true); setEditData(profile || {}); }}>
+              <MaterialIcons name="edit" size={18} color="#fff" />
+              <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        
       </View>
 
       {/* Fullscreen photo view */}
       <Modal visible={showImageModal} transparent animationType="fade">
         <View style={styles.imageModalContainer}>
-          <TouchableOpacity
-            style={styles.imageModalBackdrop}
-            onPress={() => setShowImageModal(false)}
-          />
+          <TouchableOpacity style={styles.imageModalBackdrop} onPress={() => setShowImageModal(false)} />
           <Image source={{ uri: profile.photo_url }} style={styles.imageModalPhoto} />
         </View>
       </Modal>
@@ -231,12 +313,14 @@ finally {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
             <ScrollView>
+              <Text style={styles.infoLabel}>Name</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Name"
                 value={editData.name}
                 onChangeText={(t) => setEditData({ ...editData, name: t })}
               />
+              <Text style={styles.infoLabel}>Bio</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 placeholder="Bio"
@@ -244,6 +328,7 @@ finally {
                 onChangeText={(t) => setEditData({ ...editData, bio: t })}
                 multiline
               />
+              <Text style={styles.infoLabel}>Birthdate</Text>
               <TouchableOpacity onPress={() => setShowDatePicker(true)}>
                 <TextInput
                   style={styles.input}
@@ -267,18 +352,45 @@ finally {
                   }}
                 />
               )}
+              <Text style={styles.infoLabel}>Location</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Location"
                 value={editData.location}
                 onChangeText={(t) => setEditData({ ...editData, location: t })}
               />
+
+              {/* NEW: LocationPicker (mirrored from JobSeekerProfileScreen) */}
+              <Text style={{ marginTop: 8, marginBottom: 6, color: '#333', fontWeight: '600' }}>
+                Company Location (Map Pin)
+              </Text>
+              <LocationPicker
+                initialLocation={{
+                  latitude: locationData.latitude,
+                  longitude: locationData.longitude,
+                }}
+                onLocationPicked={(loc) => {
+                  setLocationData({
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                    geocoded_address: loc.geocoded_address,
+                  });
+
+                  // Optionally update the textual location field to the resolved address
+                  setEditData({
+                    ...editData,
+                    location: loc.geocoded_address,
+                  });
+                }}
+              />
+              <Text style={styles.infoLabel}>Contact Info</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Contact Info"
                 value={editData.contact_info}
                 onChangeText={(t) => setEditData({ ...editData, contact_info: t })}
               />
+              <Text style={styles.infoLabel}>Contact Email</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Contact Email"
@@ -289,8 +401,6 @@ finally {
               <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={busy}>
                 <Text style={styles.saveButtonText}>{busy ? 'Saving...' : 'Save'}</Text>
               </TouchableOpacity>
-
-              
             </ScrollView>
           </View>
         </View>
@@ -332,21 +442,21 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   editProfileButton: {
-  backgroundColor: '#5271ff',
-  paddingVertical: 10,
-  paddingHorizontal: 20,
-  borderRadius: 8,
-  marginTop: 10,
-  alignSelf: 'center',
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 8,
-},
-editProfileButtonText: {
-  color: '#fff',
-  fontSize: 16,
-  fontWeight: '600',
-},
+    backgroundColor: '#5271ff',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editProfileButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   headerSection: {
     alignItems: 'center',
     marginBottom: 25,

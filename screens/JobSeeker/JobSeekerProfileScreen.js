@@ -69,7 +69,7 @@ export default function JobSeekerProfileScreen() {
       setResume(Boolean(hasResume));
     } catch (err) {
       console.error('❌ Error fetching profile data:', err);
-      Toast.show({ type: 'error', text1: 'Failed to load profile' });
+      Toast.show({ type: 'error', text1: 'Failed to load profile' , visibilityTime: 4000,});
       setProfile({});
       setEditData({});
       setResume(false);
@@ -94,7 +94,7 @@ export default function JobSeekerProfileScreen() {
 
 
   // upload profile photo
-   const handlePhotoChange = async () => {
+  const handlePhotoChange = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -114,13 +114,13 @@ export default function JobSeekerProfileScreen() {
 
       const token = await AsyncStorage.getItem('token');
       await putWithAuth('/PutProfileInfo/Photo', formData, token, true);
-      Toast.show({ type: 'success', text1: 'Profile photo updated!' });
+      Toast.show({ type: 'success', text1: 'Profile photo updated!', visibilityTime: 4000, });
       await fetchProfileData();
     } catch (err) {
-  console.log('❌ Photo upload failed:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-  // Toast.show({ type: 'error', text1: 'Photo upload failed' });
-}
-finally {
+      console.log('❌ Photo upload failed:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+      Toast.show({ type: 'error', text1: 'Photo upload failed', visibilityTime: 4000, });
+    }
+    finally {
       setUploadingPhoto(false);
     }
   };
@@ -131,7 +131,7 @@ finally {
       setBusy(true);
       const token = await AsyncStorage.getItem('token');
       if (!token) {
-        Toast.show({ type: 'error', text1: 'Not authenticated' });
+        Toast.show({ type: 'error', text1: 'Not authenticated' , visibilityTime: 4000,});
         return;
       }
 
@@ -150,18 +150,19 @@ finally {
       maybeAppend('location', editData?.location);
       maybeAppend('contact_info', editData?.contact_info);
       maybeAppend('contact_email', editData?.contact_email);
+      maybeAppend('years_of_experience', editData?.years_of_experience);
 
       maybeAppend("latitude", locationData.latitude);
       maybeAppend("longitude", locationData.longitude);
       maybeAppend("geocoded_address", locationData.geocoded_address);
 
       await putWithAuth('/PutProfileInfo', fd, token, true);
-      Toast.show({ type: 'success', text1: 'Profile updated successfully!' });
+      Toast.show({ type: 'success', text1: 'Profile updated successfully!', visibilityTime: 4000, });
       setEditing(false);
       await fetchProfileData();
     } catch (err) {
       console.error('❌ Save failed:', err);
-      Toast.show({ type: 'error', text1: 'Failed to save profile info' });
+      Toast.show({ type: 'error', text1: 'Failed to save profile info', visibilityTime: 4000, });
     } finally {
       setBusy(false);
     }
@@ -169,50 +170,50 @@ finally {
 
   // upload resume
   const handleUploadResume = async () => {
-  try {
-    console.log('📁 Starting resume upload process...');
-    
-    const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
-    console.log('📄 Document picker result:', result);
+    try {
+      console.log('📁 Starting resume upload process...');
 
-    // FIX: Check for canceled property instead of type
-    if (result.canceled) {
-      console.log('❌ Document picker cancelled');
-      return;
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+      console.log('📄 Document picker result:', result);
+
+      // FIX: Check for canceled property instead of type
+      if (result.canceled) {
+        console.log('❌ Document picker cancelled');
+        return;
+      }
+
+      // FIX: Also check if we have assets
+      if (!result.assets || result.assets.length === 0) {
+        console.log('❌ No file selected');
+        return;
+      }
+
+      setUploadingResume(true);
+
+      // FIX: Get the first asset from the assets array
+      const asset = result.assets[0];
+      const fileObj = {
+        uri: asset.uri,
+        name: asset.name || 'resume.pdf',
+        type: asset.mimeType || 'application/pdf',
+      };
+
+      console.log('📦 File object prepared:', fileObj);
+      console.log('🚀 Calling uploadFile helper...');
+
+      await uploadFile(fileObj);
+
+      console.log('✅ Resume upload successful!');
+      Toast.show({ type: 'success', text1: 'Resume uploaded successfully!' , visibilityTime: 4000,});
+      await fetchProfileData();
+
+    } catch (err) {
+      console.error('❌ Resume upload failed:', err);
+      console.log('❌ Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+      Toast.show({ type: 'error', text1: 'Resume upload failed: ' + (err.message || 'Unknown error') , visibilityTime: 4000,});
+    } finally {
+      setUploadingResume(false);
     }
-
-    // FIX: Also check if we have assets
-    if (!result.assets || result.assets.length === 0) {
-      console.log('❌ No file selected');
-      return;
-    }
-
-    setUploadingResume(true);
-
-    // FIX: Get the first asset from the assets array
-    const asset = result.assets[0];
-    const fileObj = {
-      uri: asset.uri,
-      name: asset.name || 'resume.pdf',
-      type: asset.mimeType || 'application/pdf',
-    };
-
-    console.log('📦 File object prepared:', fileObj);
-    console.log('🚀 Calling uploadFile helper...');
-
-    await uploadFile(fileObj);
-    
-    console.log('✅ Resume upload successful!');
-    Toast.show({ type: 'success', text1: 'Resume uploaded successfully!' });
-    await fetchProfileData();
-    
-  } catch (err) {
-    console.error('❌ Resume upload failed:', err);
-    console.log('❌ Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-    Toast.show({ type: 'error', text1: 'Resume upload failed: ' + (err.message || 'Unknown error') });
-  } finally {
-    setUploadingResume(false);
-  }
   };
   const handleViewResume = async () => {
     try {
@@ -225,14 +226,14 @@ finally {
         (res?.data?.resume && (res.data.resume.url || res.data.resume.signed_url));
 
       if (!url) {
-        Toast.show({ type: 'info', text1: 'No resume available' });
+        Toast.show({ type: 'info', text1: 'No resume available', visibilityTime: 4000, });
         return;
       }
 
       await WebBrowser.openBrowserAsync(url);
     } catch (err) {
       console.error('❌ View resume failed:', err);
-      Toast.show({ type: 'error', text1: 'Failed to open resume' });
+      Toast.show({ type: 'error', text1: 'Failed to open resume', visibilityTime: 4000, });
     }
   };
 
@@ -283,7 +284,7 @@ finally {
                 // Placeholder circle with initials or icon
                 <View style={[styles.profilePhoto, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#eef4ff' }]}>
                   <Text style={{ color: '#5271ff', fontWeight: '700', fontSize: 28 }}>
-                    {((profile?.name || '').split(' ').map(s => s[0]).slice(0,2).join('')) || 'JS'}
+                    {((profile?.name || '').split(' ').map(s => s[0]).slice(0, 2).join('')) || 'JS'}
                   </Text>
                 </View>
               )}
@@ -301,6 +302,36 @@ finally {
           <Text style={styles.bio}>{safe(profile.bio, 'No bio yet.')}</Text>
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Specialities and Experience</Text>
+
+          {/* Years of Experience */}
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Years of Experience</Text>
+            <Text style={styles.infoText}>
+              {profile.years_of_experience != null
+                ? `${profile.years_of_experience} year(s)`
+                : 'Not specified'}
+            </Text>
+          </View>
+
+          {/* Skills / Specialities */}
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Specialities</Text>
+
+            {!profile.skills || profile.skills.length === 0 ? (
+              <Text style={styles.infoText}>No skills detected (Upload resume)</Text>
+            ) : (
+              <View style={styles.skillContainer}>
+                {profile.skills.map((skill, index) => (
+                  <View key={index} style={styles.skillBadge}>
+                    <Text style={styles.skillText}>{skill}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
         {/* Profile Information Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Information</Text>
@@ -310,74 +341,74 @@ finally {
               <Text style={styles.infoLabel}>Home Address</Text>
               <Text style={styles.infoText}>{safe(profile.location, 'Not specified')}</Text>
             </View>
-            
-            <View style={styles.infoItem}>
-  <Text style={styles.infoLabel}>Home Address</Text>
-  <Text style={styles.infoText}>{safe(profile.location, 'Not specified')}</Text>
-</View>
 
-{/* Map Location - Tight spacing like above */}
-<View style={styles.infoItem}>
-  <Text style={styles.infoLabel}>Map Location</Text>
-  {profile.latitude && profile.longitude ? (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={() => {
-        const url = Platform.select({
-          ios: `http://maps.apple.com/?ll=${profile.latitude},${profile.longitude}`,
-          android: `https://www.google.com/maps/search/?api=1&query=${profile.latitude},${profile.longitude}`
-        });
-        Linking.openURL(url);
-      }}
-    >
-      <Text style={{ color: "#444", fontSize: 12, marginBottom: 2 }}>
-        Tap to view in Maps
-      </Text>
-      <MapView
-        style={{
-          height: 150,
-          width: "100%",
-          borderRadius: 10,
-          marginTop: 0,
-        }}
-        initialRegion={{
-          latitude: profile.latitude,
-          longitude: profile.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        scrollEnabled={false}
-        zoomEnabled={false}
-        rotateEnabled={false}
-        pitchEnabled={false}
-      >
-        <Marker
-          coordinate={{
-            latitude: profile.latitude,
-            longitude: profile.longitude,
-          }}
-        />
-      </MapView>
-      <Text style={[styles.infoText, { color: "#444", fontSize: 14, marginTop: 4 }]}>
-        {safe(profile.geocoded_address || profile.location, 'Not specified')}
-      </Text>
-    </TouchableOpacity>
-  ) : (
-    <View style={{
-      height: 150,
-      width: "100%",
-      backgroundColor: "#f0f0f0",
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-    }}>
-      <Text style={{ color: "#777" }}>📍 No location set</Text>
-      <Text style={{ color: "#5271ff", fontSize: 12 }}>
-        Edit profile to add location
-      </Text>
-    </View>
-  )}
-</View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Home Address</Text>
+              <Text style={styles.infoText}>{safe(profile.location, 'Not specified')}</Text>
+            </View>
+
+            {/* Map Location - Tight spacing like above */}
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Map Location</Text>
+              {profile.latitude && profile.longitude ? (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    const url = Platform.select({
+                      ios: `http://maps.apple.com/?ll=${profile.latitude},${profile.longitude}`,
+                      android: `https://www.google.com/maps/search/?api=1&query=${profile.latitude},${profile.longitude}`
+                    });
+                    Linking.openURL(url);
+                  }}
+                >
+                  <Text style={{ color: "#444", fontSize: 12, marginBottom: 2 }}>
+                    Tap to view in Maps
+                  </Text>
+                  <MapView
+                    style={{
+                      height: 150,
+                      width: "100%",
+                      borderRadius: 10,
+                      marginTop: 0,
+                    }}
+                    initialRegion={{
+                      latitude: profile.latitude,
+                      longitude: profile.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                    rotateEnabled={false}
+                    pitchEnabled={false}
+                  >
+                    <Marker
+                      coordinate={{
+                        latitude: profile.latitude,
+                        longitude: profile.longitude,
+                      }}
+                    />
+                  </MapView>
+                  <Text style={[styles.infoText, { color: "#444", fontSize: 14, marginTop: 4 }]}>
+                    {safe(profile.geocoded_address || profile.location, 'Not specified')}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={{
+                  height: 150,
+                  width: "100%",
+                  backgroundColor: "#f0f0f0",
+                  borderRadius: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}>
+                  <Text style={{ color: "#777" }}>📍 No location set</Text>
+                  <Text style={{ color: "#5271ff", fontSize: 12 }}>
+                    Edit profile to add location
+                  </Text>
+                </View>
+              )}
+            </View>
 
 
             <View style={styles.infoItem}>
@@ -389,6 +420,7 @@ finally {
               <Text style={styles.infoLabel}>Contact Info</Text>
               <Text style={styles.infoText}>{safe(profile.contact_info, 'Not specified')}</Text>
             </View>
+
 
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Email Address</Text>
@@ -447,12 +479,15 @@ finally {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
             <ScrollView>
+              <Text style={styles.infoLabel}>Name</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Name"
                 value={editData?.name ?? ''}
                 onChangeText={(t) => setEditData({ ...editData, name: t })}
               />
+
+              <Text style={styles.infoLabel}>Bio</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 placeholder="Bio"
@@ -460,6 +495,8 @@ finally {
                 onChangeText={(t) => setEditData({ ...editData, bio: t })}
                 multiline
               />
+
+              <Text style={styles.infoLabel}>Birthdate</Text>
               <TouchableOpacity onPress={() => setShowDatePicker(true)}>
                 <TextInput
                   style={styles.input}
@@ -467,6 +504,7 @@ finally {
                   editable={false}
                   value={editData?.birthdate ?? ''}
                 />
+
               </TouchableOpacity>
               {showDatePicker && (
                 <DateTimePicker
@@ -483,6 +521,7 @@ finally {
                   }}
                 />
               )}
+              <Text style={styles.infoLabel}>Location</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Location"
@@ -490,7 +529,7 @@ finally {
                 onChangeText={(t) => setEditData({ ...editData, location: t })}
               />
 
-              <Text style={styles.input}>Home Address (Map Pin)</Text>
+              <Text style={styles.infoLabel}>Geolocation</Text>
 
               <LocationPicker
                 initialLocation={{
@@ -510,18 +549,40 @@ finally {
                   // });
                 }}
               />
-
+              
+              <Text style={styles.infoLabel}>Contact Info</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Contact Info"
                 value={editData?.contact_info ?? ''}
                 onChangeText={(t) => setEditData({ ...editData, contact_info: t })}
               />
+
+              <Text style={styles.infoLabel}>Contact Email</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Contact Email"
                 value={editData?.contact_email ?? ''}
                 onChangeText={(t) => setEditData({ ...editData, contact_email: t })}
+              />
+
+              {/* Years of Experience */}
+              <Text style={styles.infoLabel}>Years of Experience</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Years of Experience"
+                keyboardType="numeric"
+                value={
+                  editData?.years_of_experience != null
+                    ? String(editData.years_of_experience)
+                    : ''
+                }
+                onChangeText={(t) =>
+                  setEditData({
+                    ...editData,
+                    years_of_experience: t.replace(/[^0-9]/g, ''),
+                  })
+                }
               />
 
               <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={busy}>
@@ -785,4 +846,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  skillContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+    gap: 8,
+  },
+  skillBadge: {
+    backgroundColor: '#5271ff20',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#5271ff60',
+  },
+  skillText: {
+    color: '#5271ff',
+    fontWeight: '600',
+  },
+
 });
