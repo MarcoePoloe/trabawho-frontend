@@ -55,6 +55,15 @@ const JobSeekerDashboard = ({ navigation, route }) => {
   const [loadingEmployers, setLoadingEmployers] = useState(false);
   const [employersTotal, setEmployersTotal] = useState(null);
 
+  // Employer search filters
+  const [employerIndustry, setEmployerIndustry] = useState('');
+  const [employerWorkSetup, setEmployerWorkSetup] = useState(null);
+  // values: 'onsite', 'hybrid', 'remote_friendly'
+  const [employerLocation, setEmployerLocation] = useState('');
+  const [employerSortNearest, setEmployerSortNearest] = useState(false);
+  const [showEmployerFilters, setShowEmployerFilters] = useState(false);
+
+
   useEffect(() => {
     const checkAuth = async () => {
       const token = await AsyncStorage.getItem('token');
@@ -238,42 +247,37 @@ const JobSeekerDashboard = ({ navigation, route }) => {
   };
 
   // --- Employer search function (NEW)
-  const fetchEmployers = async (query = null) => {
-  const q = (query ?? employerQuery ?? '').trim();
+  const fetchEmployers = async () => {
+    setLoadingEmployers(true);
 
-  if (!q) {
-    setEmployers([]);
-    setEmployersTotal(0);
-    setEmployersPage(1);
-    return;
-  }
+    try {
+      let url = `/search/employers?`;
 
-  setLoadingEmployers(true);
+      if (employerQuery) url += `q=${encodeURIComponent(employerQuery)}&`;
+      if (employerIndustry) url += `industry=${encodeURIComponent(employerIndustry)}&`;
+      if (employerWorkSetup) url += `work_setup_policy=${encodeURIComponent(employerWorkSetup)}&`;
+      if (employerLocation) url += `location=${encodeURIComponent(employerLocation)}&`;
 
-  try {
-    const url = `/search/users?q=${encodeURIComponent(q)}`;
-    const res = await getRequest(url);
+      // radius already available from job search (reuse it)
+      if (radiusKm) url += `radius_km=${radiusKm}&`;
 
-    // console.log("🔍 SEARCH RAW:", res?.data);
+      // sort by nearest toggle
+      if (employerSortNearest) url += `sort_by_distance=true&`;
 
-    // The backend returns: { searching, count, results }
-    const results = Array.isArray(res?.data?.results)
-      ? res.data.results
-      : [];
+      const res = await getRequest(url);
+      const results = Array.isArray(res?.data?.results) ? res.data.results : [];
 
-    // console.log("📌 Parsed Results:", results);
+      setEmployers(results);
+      setEmployersTotal(results.length);
+      setEmployersPage(1);
 
-    setEmployers(results);
-    setEmployersTotal(results.length);
-    setEmployersPage(1);
-
-  } catch (err) {
-    console.error("Error fetching employers:", err);
-    Alert.alert("Error", "Failed to search employers.");
-  } finally {
-    setLoadingEmployers(false);
-  }
-};
+    } catch (err) {
+      console.error("Error fetching employers:", err);
+      Alert.alert("Error", "Failed to search employers.");
+    } finally {
+      setLoadingEmployers(false);
+    }
+  };
 
 
   const paginatedEmployers = employers.slice(
@@ -405,65 +409,177 @@ const JobSeekerDashboard = ({ navigation, route }) => {
           )}
         </View>
 
-        {/* --- Employer Search Section (NEW) --- */}
+        {/* SEARCH EMPLOYERS SECTION */}
         <View style={styles.card}>
           <View style={styles.titleRow}>
             <Text style={styles.cardTitle}>Search Employers</Text>
-            <Text style={{ fontSize: 12, color: '#666' }}>Prototype — search by name</Text>
           </View>
 
-          <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+          {/* Keyword Search */}
+          <View style={{ flexDirection: "row", marginBottom: 12 }}>
             <TextInput
               style={[styles.searchInput, { flex: 1 }]}
-              placeholder="Type employer name..."
+              placeholder="Search by employer name..."
               value={employerQuery}
               onChangeText={setEmployerQuery}
-              onSubmitEditing={() => fetchEmployers( employerQuery)}
+              onSubmitEditing={fetchEmployers}
             />
             <TouchableOpacity
               style={[styles.searchButton, { marginLeft: 8 }]}
-              onPress={() => fetchEmployers(employerQuery)}
+              onPress={fetchEmployers}
             >
               <Text style={styles.searchButtonText}>Search</Text>
             </TouchableOpacity>
           </View>
 
+          {/* Filter dropdown toggle */}
+<TouchableOpacity
+  onPress={() => setShowEmployerFilters(!showEmployerFilters)}
+  style={{ marginBottom: 12 }}
+>
+  <Text style={{ color: "#5271ff", fontWeight: "600" }}>
+    {showEmployerFilters ? "Hide Filters ▲" : "Show Filters ▼"}
+  </Text>
+</TouchableOpacity>
+
+{showEmployerFilters && (
+  <View style={styles.filtersContainer}>
+          {/* Filters */}
+          <View style={{ marginBottom: 12 }}>
+            {/* Industry */}
+            <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 4 }}>
+              Industry
+            </Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="e.g. Technology, Healthcare, Retail"
+              value={employerIndustry}
+              onChangeText={setEmployerIndustry}
+              onSubmitEditing={fetchEmployers}
+            />
+          </View>
+
+          {/* Work Setup Dropdown */}
+          <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 4 }}>
+            Work Setup Policy
+          </Text>
+
+          <View style={[styles.searchInput, { padding: 0 }]}>
+            {["onsite", "hybrid", "remote_friendly"].map((option) => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => {
+                  if (employerWorkSetup === option) {
+                    // unselect if clicked again
+                    setEmployerWorkSetup(null);
+                  } else {
+                    setEmployerWorkSetup(option);
+                  }
+                }}
+                style={{
+                  padding: 12,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text>
+                  {option === "onsite"
+                    ? "Onsite"
+                    : option === "hybrid"
+                      ? "Hybrid"
+                      : "Remote Friendly"}
+                </Text>
+                {employerWorkSetup === option && (
+                  <MaterialIcons name="check" size={18} color="#5271ff" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Location Filter */}
+          <View style={{ marginTop: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 4 }}>
+              Location
+            </Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Enter city or address..."
+              value={employerLocation}
+              onChangeText={setEmployerLocation}
+              onSubmitEditing={fetchEmployers}
+            />
+          </View>
+
+          {/* Sort by Nearest Toggle */}
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", marginTop: 12 }}
+            onPress={() => setEmployerSortNearest(!employerSortNearest)}
+          >
+            <View
+              style={{
+                width: 18,
+                height: 18,
+                borderWidth: 2,
+                borderColor: "#5271ff",
+                marginRight: 10,
+                borderRadius: 4,
+                backgroundColor: employerSortNearest ? "#5271ff" : "transparent",
+              }}
+            />
+            <Text style={{ fontSize: 14, fontWeight: "500" }}>Sort by nearest</Text>
+          </TouchableOpacity>
+ </View>
+)}
+          {/* Employers List */}
           {loadingEmployers ? (
-            <ActivityIndicator size="small" color="#5271ff" style={styles.loader} />
+            <ActivityIndicator size="small" color="#5271ff" style={{ marginTop: 20 }} />
           ) : employers.length === 0 ? (
-            <Text style={styles.emptyText}>No employers found (try different keywords)</Text>
+            <Text style={styles.emptyText}>No employers found.</Text>
           ) : (
             <>
-              {paginatedEmployers.map((item) => (
+              {paginatedEmployers.map((emp) => (
                 <TouchableOpacity
-                  key={item.user_id}
-                  onPress={() => handleEmployerPress(item)}
+                  key={emp.employer_id}
+                  onPress={() => handleEmployerPress(emp)}
                   style={styles.employerRow}
                 >
                   <Image
-                    source={{ uri: item.photo }}
+                    source={{ uri: emp.photo }}
                     style={styles.employerAvatar}
                   />
                   <View style={{ marginLeft: 12, flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#333' }}>
-                      {item.name ?? 'Unnamed'}
+                    <Text style={{ fontSize: 15, fontWeight: "600" }}>
+                      {emp.name}
                     </Text>
-                    {item.location ? (
-                      <Text style={{ color: '#666', fontSize: 13 }}>
-                        {item.location}
+                    <Text style={{ fontSize: 13, color: "#777" }}>
+                      {emp.industry || "Industry Not Set"}
+                    </Text>
+
+                    {emp.work_setup_policy && (
+                      <Text style={{ fontSize: 12, color: "#5271ff", marginTop: 2 }}>
+                        {emp.work_setup_policy === "onsite"
+                          ? "Onsite"
+                          : emp.work_setup_policy === "hybrid"
+                            ? "Hybrid"
+                            : "Remote Friendly"}
                       </Text>
-                    ) : null}
+                    )}
+
+                    {emp.distance_km != null && (
+                      <Text style={{ fontSize: 12, color: "#888" }}>
+                        {emp.distance_km.toFixed(1)} km away
+                      </Text>
+                    )}
                   </View>
                 </TouchableOpacity>
               ))}
 
-
-              {/* Pagination controls for employers */}
+              {/* Pagination */}
               <View style={styles.pagination}>
                 <TouchableOpacity
-                  style={styles.paginationButton}
                   disabled={employersPage <= 1}
                   onPress={() => setEmployersPage(employersPage - 1)}
+                  style={styles.paginationButton}
                 >
                   <Text style={styles.paginationButtonText}>Previous</Text>
                 </TouchableOpacity>
@@ -473,17 +589,17 @@ const JobSeekerDashboard = ({ navigation, route }) => {
                 </Text>
 
                 <TouchableOpacity
-                  style={styles.paginationButton}
                   disabled={employersPage * ITEMS_PER_PAGE >= employersTotal}
                   onPress={() => setEmployersPage(employersPage + 1)}
+                  style={styles.paginationButton}
                 >
                   <Text style={styles.paginationButtonText}>Next</Text>
                 </TouchableOpacity>
               </View>
-
             </>
           )}
         </View>
+
 
         {/* Job Search Section */}
         <View style={styles.card}>
@@ -675,6 +791,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
+  filtersContainer: {
+  backgroundColor: "#ffffffda",
+  padding: 12,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "#e5e5e5",
+  marginBottom: 12,
+},
+
   filterRow: {
     flexDirection: 'row',
     gap: 10,

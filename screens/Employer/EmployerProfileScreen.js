@@ -131,6 +131,9 @@ export default function EmployerProfileScreen() {
       maybeAppend('location', editData.location);
       maybeAppend('contact_info', editData.contact_info);
       maybeAppend('contact_email', editData.contact_email);
+      maybeAppend('industry', editData.industry);
+      maybeAppend('work_setup_policy', editData.work_setup_policy);
+
 
       // NEW: append geolocation fields from locationData (mirrors JobSeeker)
       maybeAppend('latitude', locationData.latitude);
@@ -143,7 +146,7 @@ export default function EmployerProfileScreen() {
       await fetchProfileData();
     } catch (err) {
       console.error('❌ Save failed:', err);
-      Toast.show({ type: 'error', text1: 'Failed to save profile info' , visibilityTime: 4000,});
+      Toast.show({ type: 'error', text1: 'Failed to save profile info', visibilityTime: 4000, });
     } finally {
       setBusy(false);
     }
@@ -200,6 +203,30 @@ export default function EmployerProfileScreen() {
 
           <Text style={styles.bio}>{profile.bio || 'No bio yet.'}</Text>
         </View>
+
+        {/* Company Details Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Company Details</Text>
+
+          {/* Industry */}
+          <Text style={[styles.infoLabel, { marginTop: 8 }]}>Industry</Text>
+          <Text style={styles.infoText}>
+            {profile.industry || 'Not specified'}
+          </Text>
+
+          {/* Work Setup Policy */}
+          <Text style={[styles.infoLabel, { marginTop: 8 }]}>Work Setup Policy</Text>
+          <Text style={styles.infoText}>
+            {profile.work_setup_policy === 'onsite'
+              ? 'Onsite'
+              : profile.work_setup_policy === 'hybrid'
+                ? 'Hybrid'
+                : profile.work_setup_policy === 'remote_friendly'
+                  ? 'Remote Friendly'
+                  : 'Not specified'}
+          </Text>
+        </View>
+
 
         {/* Profile Information Section */}
         <View style={styles.section}>
@@ -397,6 +424,81 @@ export default function EmployerProfileScreen() {
                 value={editData.contact_email}
                 onChangeText={(t) => setEditData({ ...editData, contact_email: t })}
               />
+              <Text style={styles.infoLabel}>Industry</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Technology, Healthcare, Retail"
+                value={editData.industry || ''}
+                onChangeText={(t) => setEditData({ ...editData, industry: t })}
+              />
+
+              <Text style={styles.infoLabel}>Work Setup Policy</Text>
+
+              <View style={[styles.input, { paddingVertical: 0 }]}>
+                <TouchableOpacity
+                  onPress={() =>
+                    setEditData({
+                      ...editData,
+                      work_setup_policy: 'onsite',
+                    })
+                  }
+                  style={{
+                    paddingVertical: 10,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text>Onsite</Text>
+                  {editData.work_setup_policy === 'onsite' && (
+                    <MaterialIcons name="check" size={20} color="#5271ff" />
+                  )}
+                </TouchableOpacity>
+
+                <View style={{ height: 1, backgroundColor: '#eee' }} />
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setEditData({
+                      ...editData,
+                      work_setup_policy: 'hybrid',
+                    })
+                  }
+                  style={{
+                    paddingVertical: 10,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text>Hybrid</Text>
+                  {editData.work_setup_policy === 'hybrid' && (
+                    <MaterialIcons name="check" size={20} color="#5271ff" />
+                  )}
+                </TouchableOpacity>
+
+                <View style={{ height: 1, backgroundColor: '#eee' }} />
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setEditData({
+                      ...editData,
+                      work_setup_policy: 'remote_friendly',
+                    })
+                  }
+                  style={{
+                    paddingVertical: 10,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text>Remote Friendly</Text>
+                  {editData.work_setup_policy === 'remote_friendly' && (
+                    <MaterialIcons name="check" size={20} color="#5271ff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+
+
 
               <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={busy}>
                 <Text style={styles.saveButtonText}>{busy ? 'Saving...' : 'Save'}</Text>

@@ -22,7 +22,7 @@ const AppNavigator = () => {
   useEffect(() => {
     const checkAuth = async () => {
 
-      // await AsyncStorage.clear();
+      await AsyncStorage.clear();
       console.log("🔍 Running auth check...");
 
       const token = await AsyncStorage.getItem("token");

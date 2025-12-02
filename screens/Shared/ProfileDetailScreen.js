@@ -180,6 +180,36 @@ export default function ProfileDetailScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* =====================================================================
+                EMPLOYER–ONLY SECTION: Company Details
+            ===================================================================== */}
+        {role === 'employer' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Company Details</Text>
+
+            {/* Industry */}
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Industry</Text>
+              <Text style={styles.infoText}>
+                {profile.industry ? profile.industry : 'Not specified'}
+              </Text>
+            </View>
+
+            {/* Work Setup Policy */}
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Work Setup Policy</Text>
+              <Text style={styles.infoText}>
+                {profile.work_setup_policy === 'onsite'
+                  ? 'Onsite'
+                  : profile.work_setup_policy === 'hybrid'
+                    ? 'Hybrid'
+                    : profile.work_setup_policy === 'remote_friendly'
+                      ? 'Remote Friendly'
+                      : 'Not specified'}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Profile Information Section */}
         <View style={styles.section}>
